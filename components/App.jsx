@@ -137,52 +137,60 @@ function writeCache(data) {
 const IS_DEMO = !SUPABASE_URL || !SUPABASE_ANON;
 
 // ─── DATA ──────────────────────────────────────────────────────────────────
-// SVG art stays local (UI only) — config (name, pts, hint, rarity, color) loads from Supabase
-const STICKER_ART = {
-  s1: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#FF4444" strokeWidth="2"/><circle cx="20" cy="26" r="7" fill="#FF4444"/><circle cx="44" cy="26" r="7" fill="#FF4444"/><circle cx="20" cy="26" r="3" fill="#000"/><circle cx="44" cy="26" r="3" fill="#000"/><path d="M18 44 Q32 54 46 44" stroke="#FF4444" strokeWidth="2.5" fill="none" strokeLinecap="round"/><line x1="8" y1="10" x2="20" y2="22" stroke="#FF4444" strokeWidth="2"/><line x1="56" y1="10" x2="44" y2="22" stroke="#FF4444" strokeWidth="2"/></svg>,
-  s2: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#0a0a0a" stroke="#C6FF00" strokeWidth="1.5"/><ellipse cx="32" cy="28" rx="16" ry="18" fill="none" stroke="#C6FF00" strokeWidth="2"/><circle cx="24" cy="26" r="4" fill="#C6FF00"/><circle cx="40" cy="26" r="4" fill="#C6FF00"/><circle cx="24" cy="26" r="1.5" fill="#0a0a0a"/><circle cx="40" cy="26" r="1.5" fill="#0a0a0a"/><path d="M24 36 L28 34 L32 38 L36 34 L40 36" stroke="#C6FF00" strokeWidth="1.5" fill="none"/><line x1="32" y1="10" x2="32" y2="4" stroke="#C6FF00" strokeWidth="2"/></svg>,
-  s3: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#111" stroke="#fff" strokeWidth="1.5"/><rect x="18" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="36" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="20" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="38" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="16" y="40" width="5" height="7" rx="1" fill="#fff"/><rect x="23" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="30" y="40" width="5" height="8" rx="1" fill="#fff"/><rect x="37" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="44" y="40" width="5" height="7" rx="1" fill="#fff"/></svg>,
-  s4: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0d0020" stroke="#8B5CF6" strokeWidth="2"/><path d="M20 14 L24 22 L32 18 L40 22 L44 14 L40 26 L44 30 L38 28 L32 36 L26 28 L20 30 L24 26Z" fill="#8B5CF6"/><circle cx="24" cy="30" r="5" fill="#8B5CF6"/><circle cx="40" cy="30" r="5" fill="#8B5CF6"/><circle cx="24" cy="30" r="2" fill="#0d0020"/><circle cx="40" cy="30" r="2" fill="#0d0020"/></svg>,
-  s5: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="4" fill="#1a0a00" stroke="#FF8C00" strokeWidth="1.5"/><rect x="14" y="16" width="36" height="32" rx="4" fill="none" stroke="#FF8C00" strokeWidth="2"/><rect x="20" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="36" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="22" y="36" width="20" height="4" rx="1" fill="#FF8C00" opacity="0.6"/></svg>,
-  s6: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><path d="M32 4 C18 4 10 14 10 26 L10 54 L18 48 L24 54 L32 48 L40 54 L46 48 L54 54 L54 26 C54 14 46 4 32 4Z" fill="#0a1520" stroke="#88ccff" strokeWidth="1.5"/><circle cx="24" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="40" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="24" cy="26" r="2" fill="#0a1520"/><circle cx="40" cy="26" r="2" fill="#0a1520"/></svg>,
-  s7: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a0800" stroke="#FFD700" strokeWidth="2.5"/><ellipse cx="32" cy="28" rx="14" ry="16" fill="none" stroke="#FFD700" strokeWidth="2"/><circle cx="24" cy="25" r="5" fill="#FFD700"/><circle cx="40" cy="25" r="5" fill="#FFD700"/><circle cx="24" cy="25" r="2" fill="#0a0800"/><circle cx="40" cy="25" r="2" fill="#0a0800"/><path d="M20 38 L20 44 L26 44 L26 48 L30 48 L30 44 L34 44 L34 48 L38 48 L38 44 L44 44 L44 38Z" fill="#FFD700"/><circle cx="32" cy="14" r="3" fill="#FFD700"/></svg>,
-  s8: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="6" fill="#001a15" stroke="#00FFCC" strokeWidth="1.5"/><rect x="16" y="12" width="32" height="40" rx="3" fill="none" stroke="#00FFCC" strokeWidth="1.5"/><rect x="22" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><rect x="35" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><path d="M20 36 L24 32 L28 38 L32 30 L36 38 L40 32 L44 36" stroke="#00FFCC" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-};
+// Sticker icon — shows art_url image from DB, falls back to colored placeholder
+function StickerIcon({ sticker, size=64 }) {
+  const [err, setErr] = useState(false);
+  const color = sticker?.color || "#C6FF00";
+  const letter = (sticker?.name || "?")[0].toUpperCase();
 
-// Default stickers used as fallback before DB loads
+  if (sticker?.art_url && !err) {
+    return (
+      <img
+        src={sticker.art_url}
+        alt={sticker.name}
+        onError={() => setErr(true)}
+        style={{ width:size, height:size, objectFit:"contain", borderRadius:size*0.18, display:"block" }}
+      />
+    );
+  }
+  // Fallback — colored letter tile
+  return (
+    <div style={{ width:size, height:size, borderRadius:size*0.18, background:`${color}18`, border:`1.5px solid ${color}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.45, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, color, flexShrink:0 }}>
+      {letter}
+    </div>
+  );
+}
+
+// Default stickers — shown instantly before DB loads, no art_url
 const DEFAULT_STICKERS = [
-  { id:"s1", name:"Dead Eye",    rarity:"Common",    pts:10, hint:"Near a red wall",         found:24, color:"#FF4444" },
-  { id:"s2", name:"Neon Reaper", rarity:"Rare",      pts:20, hint:"Dark alley wall",          found:11, color:"#C6FF00" },
-  { id:"s3", name:"Grin",        rarity:"Common",    pts:10, hint:"Bus stop or bench",        found:31, color:"#fff"    },
-  { id:"s4", name:"Void King",   rarity:"Epic",      pts:35, hint:"Underground spot",         found:6,  color:"#8B5CF6" },
-  { id:"s5", name:"Rust Face",   rarity:"Rare",      pts:20, hint:"Industrial area",          found:14, color:"#FF8C00" },
-  { id:"s6", name:"Ghost Tag",   rarity:"Common",    pts:10, hint:"Stairwell or corner",      found:42, color:"#88ccff" },
-  { id:"s7", name:"Gold Tooth",  rarity:"Legendary", pts:50, hint:"Only 3 exist in Jakarta",  found:3,  color:"#FFD700" },
-  { id:"s8", name:"Static",      rarity:"Epic",      pts:35, hint:"Near electronics shops",   found:8,  color:"#00FFCC" },
-].map(s => ({ ...s, art: STICKER_ART[s.id] }));
+  { id:"s1", name:"Dead Eye",    rarity:"Common",    pts:10, hint:"Near a red wall",         color:"#FF4444", art_url:null },
+  { id:"s2", name:"Neon Reaper", rarity:"Rare",      pts:20, hint:"Dark alley wall",          color:"#C6FF00", art_url:null },
+  { id:"s3", name:"Grin",        rarity:"Common",    pts:10, hint:"Bus stop or bench",        color:"#ffffff", art_url:null },
+  { id:"s4", name:"Void King",   rarity:"Epic",      pts:35, hint:"Underground spot",         color:"#8B5CF6", art_url:null },
+  { id:"s5", name:"Rust Face",   rarity:"Rare",      pts:20, hint:"Industrial area",          color:"#FF8C00", art_url:null },
+  { id:"s6", name:"Ghost Tag",   rarity:"Common",    pts:10, hint:"Stairwell or corner",      color:"#88ccff", art_url:null },
+  { id:"s7", name:"Gold Tooth",  rarity:"Legendary", pts:50, hint:"Only 3 exist in Jakarta",  color:"#FFD700", art_url:null },
+  { id:"s8", name:"Static",      rarity:"Epic",      pts:35, hint:"Near electronics shops",   color:"#00FFCC", art_url:null },
+];
 
-// Fetch active stickers from Supabase, merge with local SVG art
+// Fetch active stickers from Supabase including art_url
 async function fetchStickersFromDB() {
   if (IS_DEMO) return DEFAULT_STICKERS;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/stickers?active=eq.true&order=id`,
+      `${SUPABASE_URL}/rest/v1/stickers?active=eq.true&order=id&select=id,name,rarity,pts,hint,color,art_url,reference_url`,
       { headers: { "apikey": SUPABASE_ANON, "Content-Type": "application/json" } }
     );
     if (!res.ok) return DEFAULT_STICKERS;
     const rows = await res.json();
     if (!rows?.length) return DEFAULT_STICKERS;
-    return rows.map(r => ({
-      ...r,
-      found: 0,
-      art: STICKER_ART[r.id] || STICKER_ART.s1, // fallback to s1 art if id unknown
-    }));
+    return rows;
   } catch {
     return DEFAULT_STICKERS;
   }
 }
 
-// Module-level stickers — starts as default, gets replaced after DB fetch
+// Module-level stickers ref — updated after DB fetch
 let STICKERS = DEFAULT_STICKERS;
 
 const RARITY_CONFIG = {
@@ -192,14 +200,8 @@ const RARITY_CONFIG = {
   Legendary: { color:"#FFD700", bg:"rgba(255,215,0,0.1)",   border:"rgba(255,215,0,0.35)"   },
 };
 
-const SEED_DROPS = [
-  { id:"d1", lat:35.6762,  lng:139.6503,  stickerId:"s2", owner:"tokyodrifter",  city:"Tokyo, JP",    time:"1h ago",  pts:35, pioneer:true,  isOwn:false },
-  { id:"d2", lat:48.8566,  lng:2.3522,    stickerId:"s4", owner:"parisianvoid",  city:"Paris, FR",    time:"3h ago",  pts:50, pioneer:true,  isOwn:false },
-  { id:"d3", lat:-6.2088,  lng:106.8456,  stickerId:"s7", owner:"jakartastreet", city:"Jakarta, ID",  time:"5h ago",  pts:65, pioneer:true,  isOwn:false },
-  { id:"d4", lat:40.7128,  lng:-74.006,   stickerId:"s1", owner:"nyctagger",     city:"New York, US", time:"2h ago",  pts:10, pioneer:false, isOwn:false },
-  { id:"d5", lat:51.5074,  lng:-0.1278,   stickerId:"s3", owner:"londonwall",    city:"London, UK",   time:"6h ago",  pts:10, pioneer:false, isOwn:false },
-  { id:"d6", lat:41.9028,  lng:12.4964,   stickerId:"s2", owner:"romestrike",    city:"Rome, IT",     time:"12h ago", pts:20, pioneer:true,  isOwn:false },
-];
+// No seed drops — map starts empty, real drops load from DB
+const SEED_DROPS = [];
 
 // ─── SCORING ───────────────────────────────────────────────────────────────
 function calcScore(sticker, isFirst, isPioneer) {
@@ -358,16 +360,15 @@ function AvatarDisplay({ avatarId, size=32, style={} }) {
     );
   }
   if (parsed?.type === "upload") {
-    // value = permanent storage URL, preview = local objectURL (pre-save)
     const src = parsed.value || parsed.preview;
     return (
       <img src={src} alt="avatar"
         style={{ width:size, height:size, objectFit:"cover", borderRadius:size*0.25, display:"block", ...style }}/>
     );
   }
-  // Legacy: sticker SVG
-  const S = STICKERS.find(s=>s.id===avatarId)?.art || STICKERS[0].art;
-  return <div style={{ width:size, height:size, display:"flex", alignItems:"center", justifyContent:"center", ...style }}><S size={size}/></div>;
+  // Legacy sticker id — find in current STICKERS list and render as StickerIcon
+  const sticker = STICKERS.find(s => s.id === avatarId) || { name:"?", color:"#C6FF00", art_url:null };
+  return <div style={{ ...style }}><StickerIcon sticker={sticker} size={size}/></div>;
 }
 
 function OnlineStatus() {
@@ -628,16 +629,20 @@ function AuthScreen({ onAuth, pendingSession }) {
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMap, onProfile }) {
-  const lb = [
-    { tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true },
-    { tag:"tokyodrifter", pts:Math.max(totalScore-31,1),  avatarId:"s2" },
-    { tag:"voidcrawler",  pts:Math.max(totalScore-88,1),  avatarId:"s4" },
-    { tag:"streetghost",  pts:Math.max(totalScore-144,1), avatarId:"s6" },
-    { tag:"romestrike",   pts:Math.max(totalScore-201,1), avatarId:"s2" },
-    { tag:"sgcrawler",    pts:Math.max(totalScore-267,1), avatarId:"s5" },
-    { tag:"nyctagger",    pts:Math.max(totalScore-310,1), avatarId:"s1" },
-    { tag:"londonwall",   pts:Math.max(totalScore-370,1), avatarId:"s3" },
-  ].filter(e=>e.pts>0);
+  const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
+
+  // Load real leaderboard from DB
+  useEffect(()=>{
+    if (IS_DEMO) return;
+    fetch(`${SUPABASE_URL}/rest/v1/users?select=username,total_score,avatar_id&order=total_score.desc&limit=10`,
+      { headers:{ "apikey":SUPABASE_ANON } })
+      .then(r=>r.json())
+      .then(rows=>{
+        if (!rows?.length) return;
+        setLb(rows.map(r=>({ tag:r.username, pts:r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
+      })
+      .catch(()=>{});
+  },[totalScore]);
   const rank = lb.findIndex(e=>e.own)+1;
 
   return (
@@ -743,24 +748,28 @@ function FindSticker({ stickers, discovered, onSelect, onBack }) {
           <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff35", marginTop:1 }}>Select the one you spotted IRL</p>
         </div>
       </div>
-      {sel && (() => { const S=sel.art; return (
+      {sel && (
         <div style={{ margin:"14px 20px 0", background:"#141414", border:`1px solid ${sel.color}40`, borderRadius:16, padding:"13px 16px", display:"flex", alignItems:"center", gap:14, animation:"slideDown 0.2s ease" }}>
-          <div style={{ width:50, height:50, background:"#0A0A0A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${sel.color}30`, animation:"float 2.5s ease-in-out infinite" }}><S size={34}/></div>
+          <div style={{ width:50, height:50, background:"#0A0A0A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${sel.color}30`, animation:"float 2.5s ease-in-out infinite", overflow:"hidden" }}>
+            <StickerIcon sticker={sel} size={40}/>
+          </div>
           <div style={{ flex:1 }}>
             <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, fontWeight:800, color:sel.color }}>{sel.name}</div>
             <div style={{ display:"flex", gap:6, marginTop:4 }}><RarityBadge rarity={sel.rarity} small/><span style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff35" }}>+{sel.pts} pts base</span></div>
             <p style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", marginTop:4 }}>💡 {sel.hint}</p>
           </div>
         </div>
-      ); })()}
+      )}
       <div style={{ padding:"16px 20px", flex:1 }}>
-        <p style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", letterSpacing:"0.1em", marginBottom:12 }}>ALL STICKERS — {STICKERS.length} IN CIRCULATION</p>
+        <p style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", letterSpacing:"0.1em", marginBottom:12 }}>ALL STICKERS — {stickers.length} IN CIRCULATION</p>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          {STICKERS.map(s => {
-            const S=s.art; const isSel=selected===s.id; const isDone=discovered.includes(s.id);
+          {stickers.map(s => {
+            const isSel=selected===s.id; const isDone=discovered.includes(s.id);
             return <button key={s.id} onClick={()=>setSelected(s.id)}
               style={{ background:isSel?"#141414":"#0d0d0d", border:`1.5px solid ${isSel?s.color:"#1e1e1e"}`, borderRadius:16, padding:"14px 10px 12px", display:"flex", flexDirection:"column", alignItems:"center", gap:7, transition:"all 0.2s", boxShadow:isSel?`0 0 18px ${s.color}25`:"none", position:"relative" }}>
-              <div style={{ animation:isSel?"float 2.5s ease-in-out infinite":"none" }}><S size={50}/></div>
+              <div style={{ animation:isSel?"float 2.5s ease-in-out infinite":"none" }}>
+                <StickerIcon sticker={s} size={50}/>
+              </div>
               <div style={{ textAlign:"center" }}>
                 <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, fontWeight:800, color:isSel?s.color:"#fff", lineHeight:1 }}>{s.name}</div>
                 <div style={{ display:"flex", justifyContent:"center", marginTop:4 }}><RarityBadge rarity={s.rarity} small/></div>
@@ -785,7 +794,6 @@ function FindSticker({ stickers, discovered, onSelect, onBack }) {
 function Camera({ sticker, onCapture, onBack }) {
   const videoRef=useRef(null); const canvasRef=useRef(null); const streamRef=useRef(null);
   const [streaming,setStreaming]=useState(false); const [capturing,setCapturing]=useState(false); const [camErr,setCamErr]=useState(false);
-  const S=sticker.art;
   useEffect(()=>{
     (async()=>{
       try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});streamRef.current=s;if(videoRef.current){videoRef.current.srcObject=s;videoRef.current.play();setStreaming(true);}}catch{setCamErr(true);}
@@ -803,7 +811,7 @@ function Camera({ sticker, onCapture, onBack }) {
       <div style={{ position:"absolute", top:0, left:0, right:0, zIndex:10, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", background:"linear-gradient(180deg,rgba(0,0,0,0.92) 0%,transparent 100%)" }}>
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:10, width:36, height:36, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>←</button>
         <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(0,0,0,0.75)", border:`1px solid ${sticker.color}50`, borderRadius:12, padding:"6px 12px 6px 8px", backdropFilter:"blur(10px)" }}>
-          <div style={{ width:28, height:28, background:"#111", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center" }}><S size={20}/></div>
+          <div style={{ width:28, height:28, background:"#111", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}><StickerIcon sticker={sticker} size={24}/></div>
           <div><div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, fontWeight:800, color:sticker.color }}>{sticker.name}</div><div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"#ffffff40" }}>Match this sticker</div></div>
         </div>
         <div style={{ width:36 }}/>
@@ -812,7 +820,7 @@ function Camera({ sticker, onCapture, onBack }) {
         <video ref={videoRef} style={{ width:"100%", height:"100%", objectFit:"cover", display:streaming?"block":"none" }} playsInline muted/>
         <canvas ref={canvasRef} style={{ display:"none" }}/>
         {!streaming && <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
-          {camErr?<><div style={{ background:"#141414", borderRadius:20, padding:20, animation:"float 3s ease-in-out infinite" }}><S size={68}/></div><p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, textAlign:"center", maxWidth:200 }}>Camera unavailable — tap capture for demo</p></>:<Spinner/>}
+          {camErr?<><div style={{ background:"#141414", borderRadius:20, padding:20, animation:"float 3s ease-in-out infinite" }}><StickerIcon sticker={sticker} size={68}/></div><p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, textAlign:"center", maxWidth:200 }}>Camera unavailable — tap capture for demo</p></>:<Spinner/>}
         </div>}
         <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
           <div style={{ position:"absolute", left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${sticker.color},transparent)`, animation:"scanLine 2s linear infinite" }}/>
@@ -827,7 +835,7 @@ function Camera({ sticker, onCapture, onBack }) {
         <button onClick={capture} disabled={capturing} style={{ width:72, height:72, borderRadius:"50%", background:capturing?sticker.color:"#fff", border:"5px solid #333", boxShadow:capturing?`0 0 32px ${sticker.color}80`:"none", transition:"all 0.3s", fontSize:28, display:"flex", alignItems:"center", justifyContent:"center" }}>
           {capturing?"":"📸"}
         </button>
-        <div style={{ width:44, height:44, borderRadius:12, background:"#141414", border:"1px solid #2A2A2A", display:"flex", alignItems:"center", justifyContent:"center" }}><S size={28}/></div>
+        <div style={{ width:44, height:44, borderRadius:12, background:"#141414", border:"1px solid #2A2A2A", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}><StickerIcon sticker={sticker} size={32}/></div>
       </div>
     </div>
   );
@@ -835,12 +843,11 @@ function Camera({ sticker, onCapture, onBack }) {
 
 // ─── VALIDATING ─────────────────────────────────────────────────────────────
 function Validating({ sticker }) {
-  const S=sticker.art;
   return (
     <div style={{ minHeight:"100vh", background:"#000", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
       <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 80% 60% at 50% 50%,${sticker.color}0d 0%,transparent 70%)` }}/>
       <div style={{ position:"relative", zIndex:1, background:"rgba(255,255,255,0.95)", borderRadius:24, padding:"36px 28px", maxWidth:290, width:"calc(100% - 48px)", textAlign:"center", boxShadow:"0 24px 60px rgba(0,0,0,0.9)", animation:"scaleIn 0.3s ease" }}>
-        <div style={{ animation:"float 2s ease-in-out infinite", marginBottom:20, display:"flex", justifyContent:"center" }}><S size={72}/></div>
+        <div style={{ animation:"float 2s ease-in-out infinite", marginBottom:20, display:"flex", justifyContent:"center" }}><StickerIcon sticker={sticker} size={72}/></div>
         <h3 style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#0A0A0A", fontSize:24, fontWeight:800, marginBottom:6 }}>Analyzing Photo...</h3>
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#666", fontSize:11, lineHeight:1.7, marginBottom:22 }}>Claude AI is comparing your photo against the <strong>{sticker.name}</strong> reference.</p>
         <div style={{ height:3, background:"#eee", borderRadius:2, overflow:"hidden" }}>
@@ -853,13 +860,12 @@ function Validating({ sticker }) {
 
 // ─── SUCCESS MODAL ──────────────────────────────────────────────────────────
 function SuccessModal({ sticker, breakdown, total, isPioneer, confidence, onClose }) {
-  const S=sticker.art;
   return (
     <div style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,0.88)", backdropFilter:"blur(10px)" }}>
       <div style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:24, padding:"28px 24px", width:"100%", maxWidth:330, animation:"scaleIn 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}>
         <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
           <div style={{ position:"relative" }}>
-            <div style={{ width:80, height:80, borderRadius:20, background:"#0A0A0A", border:`2px solid ${sticker.color}`, display:"flex", alignItems:"center", justifyContent:"center", animation:"glowPulse 2s ease-in-out infinite" }}><S size={54}/></div>
+            <div style={{ width:80, height:80, borderRadius:20, background:"#0A0A0A", border:`2px solid ${sticker.color}`, display:"flex", alignItems:"center", justifyContent:"center", animation:"glowPulse 2s ease-in-out infinite", overflow:"hidden" }}><StickerIcon sticker={sticker} size={54}/></div>
             <div style={{ position:"absolute", top:-6, right:-6, width:24, height:24, borderRadius:"50%", background:"#C6FF00", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#000", fontWeight:700 }}>✓</div>
           </div>
         </div>
@@ -890,10 +896,9 @@ function SuccessModal({ sticker, breakdown, total, isPioneer, confidence, onClos
 
 // ─── FAILED ─────────────────────────────────────────────────────────────────
 function Failed({ sticker, reason, onRetry, onBack }) {
-  const S=sticker.art;
   return (
     <div style={{ minHeight:"100vh", background:"#0A0A0A", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 28px", gap:24 }}>
-      <div style={{ width:80, height:80, borderRadius:20, background:"#1a0000", border:"2px solid #FF4444", display:"flex", alignItems:"center", justifyContent:"center", animation:"float 3s ease-in-out infinite" }}><S size={52}/></div>
+      <div style={{ width:80, height:80, borderRadius:20, background:"#1a0000", border:"2px solid #FF4444", display:"flex", alignItems:"center", justifyContent:"center", animation:"float 3s ease-in-out infinite", overflow:"hidden" }}><StickerIcon sticker={sticker} size={52}/></div>
       <div style={{ textAlign:"center" }}>
         <h2 style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:32, fontWeight:800, color:"#FF4444", marginBottom:8 }}>NO MATCH</h2>
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, lineHeight:1.7, maxWidth:260 }}>{reason}</p>
@@ -910,16 +915,20 @@ function Failed({ sticker, reason, onRetry, onBack }) {
 }
 
 // ─── MAP ────────────────────────────────────────────────────────────────────
-const SVG_MAP = {
-  s1:`<circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#FF4444" stroke-width="2"/><circle cx="20" cy="26" r="7" fill="#FF4444"/><circle cx="44" cy="26" r="7" fill="#FF4444"/><circle cx="20" cy="26" r="3" fill="#000"/><circle cx="44" cy="26" r="3" fill="#000"/>`,
-  s2:`<rect width="64" height="64" rx="8" fill="#0a0a0a" stroke="#C6FF00" stroke-width="1.5"/><ellipse cx="32" cy="28" rx="16" ry="18" fill="none" stroke="#C6FF00" stroke-width="2"/><circle cx="24" cy="26" r="4" fill="#C6FF00"/><circle cx="40" cy="26" r="4" fill="#C6FF00"/><circle cx="24" cy="26" r="1.5" fill="#0a0a0a"/><circle cx="40" cy="26" r="1.5" fill="#0a0a0a"/>`,
-  s3:`<circle cx="32" cy="32" r="30" fill="#111" stroke="#fff" stroke-width="1.5"/><rect x="18" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="36" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="20" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="38" y="24" width="6" height="6" rx="1" fill="#111"/>`,
-  s4:`<circle cx="32" cy="32" r="30" fill="#0d0020" stroke="#8B5CF6" stroke-width="2"/><circle cx="24" cy="30" r="5" fill="#8B5CF6"/><circle cx="40" cy="30" r="5" fill="#8B5CF6"/><circle cx="24" cy="30" r="2" fill="#0d0020"/><circle cx="40" cy="30" r="2" fill="#0d0020"/>`,
-  s5:`<rect width="64" height="64" rx="4" fill="#1a0a00" stroke="#FF8C00" stroke-width="1.5"/><rect x="20" y="22" width="8" height="8" rx="1" fill="#FF8C00"/><rect x="36" y="22" width="8" height="8" rx="1" fill="#FF8C00"/>`,
-  s6:`<path d="M32 4 C18 4 10 14 10 26 L10 54 L18 48 L24 54 L32 48 L40 54 L46 48 L54 54 L54 26 C54 14 46 4 32 4Z" fill="#0a1520" stroke="#88ccff" stroke-width="1.5"/><circle cx="24" cy="26" r="5" fill="#88ccff"/><circle cx="40" cy="26" r="5" fill="#88ccff"/>`,
-  s7:`<circle cx="32" cy="32" r="30" fill="#0a0800" stroke="#FFD700" stroke-width="2.5"/><circle cx="24" cy="25" r="5" fill="#FFD700"/><circle cx="40" cy="25" r="5" fill="#FFD700"/><path d="M20 38 L20 44 L44 44 L44 38Z" fill="#FFD700"/>`,
-  s8:`<rect width="64" height="64" rx="6" fill="#001a15" stroke="#00FFCC" stroke-width="1.5"/><rect x="22" y="20" width="7" height="7" rx="1" fill="#00FFCC"/><rect x="35" y="20" width="7" height="7" rx="1" fill="#00FFCC"/>`,
-};
+// Builds a map marker icon — uses art_url if available, else colored initial
+function makeMarkerHtml(st, color, delay) {
+  const inner = st.art_url
+    ? `<img src="${st.art_url}" style="width:26px;height:26px;object-fit:contain;border-radius:4px;" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/><span style="display:none;width:26px;height:26px;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:${color}">${(st.name||"?")[0]}</span>`
+    : `<span style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:${color}">${(st.name||"?")[0]}</span>`;
+  return `<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.45s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms both"><div style="width:42px;height:42px;border-radius:50%;border:2.5px solid ${color};background:#0A0A0A;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px ${color}25,0 4px 14px rgba(0,0,0,0.7)">${inner}</div><div style="width:2px;height:9px;background:${color}"></div><div style="width:5px;height:5px;border-radius:50%;background:${color}"></div></div>`;
+}
+
+function makePopupHtml(st, d, rarCfg, color) {
+  const artHtml = st.art_url
+    ? `<img src="${st.art_url}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;" />`
+    : `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:36px;color:${color}">${(st.name||"?")[0]}</span>`;
+  return `<div style="background:#141414;border:1px solid #2A2A2A;border-radius:18px;width:220px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.8)"><div style="height:90px;background:#0A0A0A;display:flex;align-items:center;justify-content:center;position:relative">${artHtml}<div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(0deg,#141414,transparent)"></div></div><div style="padding:11px 13px 13px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;margin-bottom:7px">${st.name}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px"><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:${rarCfg.bg};border:1px solid ${rarCfg.border};color:${rarCfg.color}">${st.rarity}</span><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(198,255,0,0.1);border:1px solid rgba(198,255,0,0.3);color:#C6FF00">+${d.pts} pts</span>${d.pioneer?`<span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFD700">🏴 Pioneer</span>`:""}</div><div style="font-family:'Space Mono',monospace;font-size:9px;color:#ffffff30;padding-top:8px;border-top:1px solid #2A2A2A">@${d.owner} · ${d.city} · ${d.time}</div></div></div>`;
+}
 
 function MapScreen({ drops, stickers, onBack }) {
   const mapRef=useRef(null); const inst=useRef(null); const [ready,setReady]=useState(false);
@@ -934,11 +943,11 @@ function MapScreen({ drops, stickers, onBack }) {
     const L=window.L,m=inst.current;
     m.eachLayer(l=>{if(l._icon)m.removeLayer(l);});
     drops.forEach((d,i)=>{
-      const st=STICKERS.find(s=>s.id===d.stickerId)||STICKERS[0];
+      const st=stickers.find(s=>s.id===d.stickerId)||stickers[0]||{name:"?",color:"#C6FF00",rarity:"Common",art_url:null};
       const color=d.isOwn?"#C6FF00":st.color;
       const rarCfg=RARITY_CONFIG[st.rarity]||RARITY_CONFIG.Common;
-      const icon=L.divIcon({html:`<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.45s cubic-bezier(0.34,1.56,0.64,1) ${i*45}ms both"><div style="width:42px;height:42px;border-radius:50%;border:2.5px solid ${color};background:#0A0A0A;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px ${color}25,0 4px 14px rgba(0,0,0,0.7)"><svg width="26" height="26" viewBox="0 0 64 64">${SVG_MAP[st.id]||SVG_MAP.s1}</svg></div><div style="width:2px;height:9px;background:${color}"></div><div style="width:5px;height:5px;border-radius:50%;background:${color}"></div></div>`,className:"",iconSize:[42,62],iconAnchor:[21,62],popupAnchor:[0,-66]});
-      const popup=`<div style="background:#141414;border:1px solid #2A2A2A;border-radius:18px;width:220px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.8)"><div style="height:90px;background:#0A0A0A;display:flex;align-items:center;justify-content:center;position:relative"><svg width="54" height="54" viewBox="0 0 64 64">${SVG_MAP[st.id]||SVG_MAP.s1}</svg><div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(0deg,#141414,transparent)"></div></div><div style="padding:11px 13px 13px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;margin-bottom:7px">${st.name}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px"><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:${rarCfg.bg};border:1px solid ${rarCfg.border};color:${rarCfg.color}">${st.rarity}</span><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(198,255,0,0.1);border:1px solid rgba(198,255,0,0.3);color:#C6FF00">+${d.pts} pts</span>${d.pioneer?`<span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFD700">🏴 Pioneer</span>`:""}</div><div style="font-family:'Space Mono',monospace;font-size:9px;color:#ffffff30;padding-top:8px;border-top:1px solid #2A2A2A">@${d.owner} · ${d.city} · ${d.time}</div></div></div>`;
+      const icon=L.divIcon({html:makeMarkerHtml(st,color,i*45),className:"",iconSize:[42,62],iconAnchor:[21,62],popupAnchor:[0,-66]});
+      const popup=makePopupHtml(st,d,rarCfg,color);
       L.marker([d.lat,d.lng],{icon}).addTo(m).bindPopup(popup,{maxWidth:230,className:"",closeOnClick:false,autoPan:true,autoPanPadding:[20,80]});
     });
     const own=drops.find(d=>d.isOwn);
@@ -963,9 +972,9 @@ function MapScreen({ drops, stickers, onBack }) {
       <div style={{ position:"absolute", bottom:0, left:0, right:0, zIndex:1000, background:"linear-gradient(0deg,rgba(8,10,12,0.98) 55%,transparent 100%)", paddingTop:36, paddingBottom:24 }}>
         <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", letterSpacing:"0.1em", padding:"0 20px 10px" }}>RECENT FINDS</div>
         <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 20px", scrollbarWidth:"none" }}>
-          {drops.map(d=>{const st=STICKERS.find(s=>s.id===d.stickerId)||STICKERS[0];const S=st.art;return(
+          {drops.map(d=>{const st=stickers.find(s=>s.id===d.stickerId)||stickers[0]||{name:"?",color:"#C6FF00",art_url:null};return(
             <div key={d.id} onClick={()=>inst.current?.flyTo([d.lat,d.lng],13,{duration:1.1})} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(20,20,20,0.95)", border:`1px solid ${d.isOwn?"rgba(198,255,0,0.35)":"#2A2A2A"}`, borderRadius:12, padding:"8px 12px", cursor:"pointer", flexShrink:0, backdropFilter:"blur(10px)" }}>
-              <div style={{ width:28,height:28,background:"#141414",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center" }}><S size={18}/></div>
+              <div style={{ width:28,height:28,background:"#141414",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}><StickerIcon sticker={st} size={22}/></div>
               <div><div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:800, color:d.isOwn?"#C6FF00":"#fff" }}>{st.name}</div><div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"rgba(255,255,255,0.25)" }}>@{d.owner} · {d.city}</div></div>
             </div>
           );})}
@@ -1006,9 +1015,10 @@ function ProfileScreen({ user, totalScore, discovered, drops, stickers, onBack, 
       <div style={{ padding:"0 20px 40px" }}>
         <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", letterSpacing:"0.1em", marginBottom:12 }}>COLLECTION — {discovered.length}/{STICKERS.length} FOUND</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
-          {STICKERS.map(s=>{const found=discovered.includes(s.id);const Sv=s.art;return(
+          {stickers.map(s=>{const found=discovered.includes(s.id);return(
             <div key={s.id} style={{ background:found?"#141414":"#080808", border:`1px solid ${found?s.color+"40":"#141414"}`, borderRadius:12, padding:"10px 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:5, opacity:found?1:0.3, transition:"all 0.2s" }}>
-              <Sv size={34}/><span style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:found?s.color:"#ffffff20", textAlign:"center" }}>{s.name}</span>
+              <StickerIcon sticker={s} size={34}/>
+              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:found?s.color:"#ffffff20", textAlign:"center" }}>{s.name}</span>
             </div>
           );})}
         </div>
