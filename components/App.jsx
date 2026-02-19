@@ -137,32 +137,53 @@ function writeCache(data) {
 const IS_DEMO = !SUPABASE_URL || !SUPABASE_ANON;
 
 // ─── DATA ──────────────────────────────────────────────────────────────────
-const STICKERS = [
-  { id:"s1", name:"Dead Eye",    rarity:"Common",    pts:10, hint:"Near a red wall",          found:24, color:"#FF4444",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#FF4444" strokeWidth="2"/><circle cx="20" cy="26" r="7" fill="#FF4444"/><circle cx="44" cy="26" r="7" fill="#FF4444"/><circle cx="20" cy="26" r="3" fill="#000"/><circle cx="44" cy="26" r="3" fill="#000"/><path d="M18 44 Q32 54 46 44" stroke="#FF4444" strokeWidth="2.5" fill="none" strokeLinecap="round"/><line x1="8" y1="10" x2="20" y2="22" stroke="#FF4444" strokeWidth="2"/><line x1="56" y1="10" x2="44" y2="22" stroke="#FF4444" strokeWidth="2"/></svg>
-  },
-  { id:"s2", name:"Neon Reaper", rarity:"Rare",      pts:20, hint:"Dark alley wall",           found:11, color:"#C6FF00",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#0a0a0a" stroke="#C6FF00" strokeWidth="1.5"/><ellipse cx="32" cy="28" rx="16" ry="18" fill="none" stroke="#C6FF00" strokeWidth="2"/><circle cx="24" cy="26" r="4" fill="#C6FF00"/><circle cx="40" cy="26" r="4" fill="#C6FF00"/><circle cx="24" cy="26" r="1.5" fill="#0a0a0a"/><circle cx="40" cy="26" r="1.5" fill="#0a0a0a"/><path d="M24 36 L28 34 L32 38 L36 34 L40 36" stroke="#C6FF00" strokeWidth="1.5" fill="none"/><line x1="32" y1="10" x2="32" y2="4" stroke="#C6FF00" strokeWidth="2"/></svg>
-  },
-  { id:"s3", name:"Grin",        rarity:"Common",    pts:10, hint:"Bus stop or bench",        found:31, color:"#fff",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#111" stroke="#fff" strokeWidth="1.5"/><rect x="18" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="36" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="20" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="38" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="16" y="40" width="5" height="7" rx="1" fill="#fff"/><rect x="23" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="30" y="40" width="5" height="8" rx="1" fill="#fff"/><rect x="37" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="44" y="40" width="5" height="7" rx="1" fill="#fff"/></svg>
-  },
-  { id:"s4", name:"Void King",   rarity:"Epic",      pts:35, hint:"Underground spot",         found:6,  color:"#8B5CF6",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0d0020" stroke="#8B5CF6" strokeWidth="2"/><path d="M20 14 L24 22 L32 18 L40 22 L44 14 L40 26 L44 30 L38 28 L32 36 L26 28 L20 30 L24 26Z" fill="#8B5CF6"/><circle cx="24" cy="30" r="5" fill="#8B5CF6"/><circle cx="40" cy="30" r="5" fill="#8B5CF6"/><circle cx="24" cy="30" r="2" fill="#0d0020"/><circle cx="40" cy="30" r="2" fill="#0d0020"/></svg>
-  },
-  { id:"s5", name:"Rust Face",   rarity:"Rare",      pts:20, hint:"Industrial area",          found:14, color:"#FF8C00",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="4" fill="#1a0a00" stroke="#FF8C00" strokeWidth="1.5"/><rect x="14" y="16" width="36" height="32" rx="4" fill="none" stroke="#FF8C00" strokeWidth="2"/><rect x="20" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="36" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="22" y="36" width="20" height="4" rx="1" fill="#FF8C00" opacity="0.6"/></svg>
-  },
-  { id:"s6", name:"Ghost Tag",   rarity:"Common",    pts:10, hint:"Stairwell or corner",      found:42, color:"#88ccff",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><path d="M32 4 C18 4 10 14 10 26 L10 54 L18 48 L24 54 L32 48 L40 54 L46 48 L54 54 L54 26 C54 14 46 4 32 4Z" fill="#0a1520" stroke="#88ccff" strokeWidth="1.5"/><circle cx="24" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="40" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="24" cy="26" r="2" fill="#0a1520"/><circle cx="40" cy="26" r="2" fill="#0a1520"/></svg>
-  },
-  { id:"s7", name:"Gold Tooth",  rarity:"Legendary", pts:50, hint:"Only 3 exist in Jakarta",  found:3,  color:"#FFD700",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a0800" stroke="#FFD700" strokeWidth="2.5"/><ellipse cx="32" cy="28" rx="14" ry="16" fill="none" stroke="#FFD700" strokeWidth="2"/><circle cx="24" cy="25" r="5" fill="#FFD700"/><circle cx="40" cy="25" r="5" fill="#FFD700"/><circle cx="24" cy="25" r="2" fill="#0a0800"/><circle cx="40" cy="25" r="2" fill="#0a0800"/><path d="M20 38 L20 44 L26 44 L26 48 L30 48 L30 44 L34 44 L34 48 L38 48 L38 44 L44 44 L44 38Z" fill="#FFD700"/><circle cx="32" cy="14" r="3" fill="#FFD700"/></svg>
-  },
-  { id:"s8", name:"Static",      rarity:"Epic",      pts:35, hint:"Near electronics shops",   found:8,  color:"#00FFCC",
-    art:({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="6" fill="#001a15" stroke="#00FFCC" strokeWidth="1.5"/><rect x="16" y="12" width="32" height="40" rx="3" fill="none" stroke="#00FFCC" strokeWidth="1.5"/><rect x="22" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><rect x="35" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><path d="M20 36 L24 32 L28 38 L32 30 L36 38 L40 32 L44 36" stroke="#00FFCC" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-  },
-];
+// SVG art stays local (UI only) — config (name, pts, hint, rarity, color) loads from Supabase
+const STICKER_ART = {
+  s1: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#FF4444" strokeWidth="2"/><circle cx="20" cy="26" r="7" fill="#FF4444"/><circle cx="44" cy="26" r="7" fill="#FF4444"/><circle cx="20" cy="26" r="3" fill="#000"/><circle cx="44" cy="26" r="3" fill="#000"/><path d="M18 44 Q32 54 46 44" stroke="#FF4444" strokeWidth="2.5" fill="none" strokeLinecap="round"/><line x1="8" y1="10" x2="20" y2="22" stroke="#FF4444" strokeWidth="2"/><line x1="56" y1="10" x2="44" y2="22" stroke="#FF4444" strokeWidth="2"/></svg>,
+  s2: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#0a0a0a" stroke="#C6FF00" strokeWidth="1.5"/><ellipse cx="32" cy="28" rx="16" ry="18" fill="none" stroke="#C6FF00" strokeWidth="2"/><circle cx="24" cy="26" r="4" fill="#C6FF00"/><circle cx="40" cy="26" r="4" fill="#C6FF00"/><circle cx="24" cy="26" r="1.5" fill="#0a0a0a"/><circle cx="40" cy="26" r="1.5" fill="#0a0a0a"/><path d="M24 36 L28 34 L32 38 L36 34 L40 36" stroke="#C6FF00" strokeWidth="1.5" fill="none"/><line x1="32" y1="10" x2="32" y2="4" stroke="#C6FF00" strokeWidth="2"/></svg>,
+  s3: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#111" stroke="#fff" strokeWidth="1.5"/><rect x="18" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="36" y="22" width="10" height="10" rx="2" fill="#fff"/><rect x="20" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="38" y="24" width="6" height="6" rx="1" fill="#111"/><rect x="16" y="40" width="5" height="7" rx="1" fill="#fff"/><rect x="23" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="30" y="40" width="5" height="8" rx="1" fill="#fff"/><rect x="37" y="40" width="5" height="9" rx="1" fill="#fff"/><rect x="44" y="40" width="5" height="7" rx="1" fill="#fff"/></svg>,
+  s4: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0d0020" stroke="#8B5CF6" strokeWidth="2"/><path d="M20 14 L24 22 L32 18 L40 22 L44 14 L40 26 L44 30 L38 28 L32 36 L26 28 L20 30 L24 26Z" fill="#8B5CF6"/><circle cx="24" cy="30" r="5" fill="#8B5CF6"/><circle cx="40" cy="30" r="5" fill="#8B5CF6"/><circle cx="24" cy="30" r="2" fill="#0d0020"/><circle cx="40" cy="30" r="2" fill="#0d0020"/></svg>,
+  s5: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="4" fill="#1a0a00" stroke="#FF8C00" strokeWidth="1.5"/><rect x="14" y="16" width="36" height="32" rx="4" fill="none" stroke="#FF8C00" strokeWidth="2"/><rect x="20" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="36" y="22" width="8" height="8" rx="1" fill="#FF8C00" opacity="0.8"/><rect x="22" y="36" width="20" height="4" rx="1" fill="#FF8C00" opacity="0.6"/></svg>,
+  s6: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><path d="M32 4 C18 4 10 14 10 26 L10 54 L18 48 L24 54 L32 48 L40 54 L46 48 L54 54 L54 26 C54 14 46 4 32 4Z" fill="#0a1520" stroke="#88ccff" strokeWidth="1.5"/><circle cx="24" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="40" cy="26" r="5" fill="#88ccff" opacity="0.9"/><circle cx="24" cy="26" r="2" fill="#0a1520"/><circle cx="40" cy="26" r="2" fill="#0a1520"/></svg>,
+  s7: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a0800" stroke="#FFD700" strokeWidth="2.5"/><ellipse cx="32" cy="28" rx="14" ry="16" fill="none" stroke="#FFD700" strokeWidth="2"/><circle cx="24" cy="25" r="5" fill="#FFD700"/><circle cx="40" cy="25" r="5" fill="#FFD700"/><circle cx="24" cy="25" r="2" fill="#0a0800"/><circle cx="40" cy="25" r="2" fill="#0a0800"/><path d="M20 38 L20 44 L26 44 L26 48 L30 48 L30 44 L34 44 L34 48 L38 48 L38 44 L44 44 L44 38Z" fill="#FFD700"/><circle cx="32" cy="14" r="3" fill="#FFD700"/></svg>,
+  s8: ({size=64})=><svg width={size} height={size} viewBox="0 0 64 64"><rect width="64" height="64" rx="6" fill="#001a15" stroke="#00FFCC" strokeWidth="1.5"/><rect x="16" y="12" width="32" height="40" rx="3" fill="none" stroke="#00FFCC" strokeWidth="1.5"/><rect x="22" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><rect x="35" y="20" width="7" height="7" rx="1" fill="#00FFCC" opacity="0.9"/><path d="M20 36 L24 32 L28 38 L32 30 L36 38 L40 32 L44 36" stroke="#00FFCC" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+};
+
+// Default stickers used as fallback before DB loads
+const DEFAULT_STICKERS = [
+  { id:"s1", name:"Dead Eye",    rarity:"Common",    pts:10, hint:"Near a red wall",         found:24, color:"#FF4444" },
+  { id:"s2", name:"Neon Reaper", rarity:"Rare",      pts:20, hint:"Dark alley wall",          found:11, color:"#C6FF00" },
+  { id:"s3", name:"Grin",        rarity:"Common",    pts:10, hint:"Bus stop or bench",        found:31, color:"#fff"    },
+  { id:"s4", name:"Void King",   rarity:"Epic",      pts:35, hint:"Underground spot",         found:6,  color:"#8B5CF6" },
+  { id:"s5", name:"Rust Face",   rarity:"Rare",      pts:20, hint:"Industrial area",          found:14, color:"#FF8C00" },
+  { id:"s6", name:"Ghost Tag",   rarity:"Common",    pts:10, hint:"Stairwell or corner",      found:42, color:"#88ccff" },
+  { id:"s7", name:"Gold Tooth",  rarity:"Legendary", pts:50, hint:"Only 3 exist in Jakarta",  found:3,  color:"#FFD700" },
+  { id:"s8", name:"Static",      rarity:"Epic",      pts:35, hint:"Near electronics shops",   found:8,  color:"#00FFCC" },
+].map(s => ({ ...s, art: STICKER_ART[s.id] }));
+
+// Fetch active stickers from Supabase, merge with local SVG art
+async function fetchStickersFromDB() {
+  if (IS_DEMO) return DEFAULT_STICKERS;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/stickers?active=eq.true&order=id`,
+      { headers: { "apikey": SUPABASE_ANON, "Content-Type": "application/json" } }
+    );
+    if (!res.ok) return DEFAULT_STICKERS;
+    const rows = await res.json();
+    if (!rows?.length) return DEFAULT_STICKERS;
+    return rows.map(r => ({
+      ...r,
+      found: 0,
+      art: STICKER_ART[r.id] || STICKER_ART.s1, // fallback to s1 art if id unknown
+    }));
+  } catch {
+    return DEFAULT_STICKERS;
+  }
+}
+
+// Module-level stickers — starts as default, gets replaced after DB fetch
+let STICKERS = DEFAULT_STICKERS;
 
 const RARITY_CONFIG = {
   Common:    { color:"#aaa",    bg:"rgba(170,170,170,0.08)", border:"rgba(170,170,170,0.2)"  },
@@ -606,7 +627,7 @@ function AuthScreen({ onAuth, pendingSession }) {
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
-function Dashboard({ user, totalScore, drops, discovered, onHunt, onMap, onProfile }) {
+function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMap, onProfile }) {
   const lb = [
     { tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true },
     { tag:"tokyodrifter", pts:Math.max(totalScore-31,1),  avatarId:"s2" },
@@ -710,7 +731,7 @@ function Dashboard({ user, totalScore, drops, discovered, onHunt, onMap, onProfi
 }
 
 // ─── FIND STICKER ───────────────────────────────────────────────────────────
-function FindSticker({ discovered, onSelect, onBack }) {
+function FindSticker({ stickers, discovered, onSelect, onBack }) {
   const [selected, setSelected] = useState(null);
   const sel = STICKERS.find(s=>s.id===selected);
   return (
@@ -900,7 +921,7 @@ const SVG_MAP = {
   s8:`<rect width="64" height="64" rx="6" fill="#001a15" stroke="#00FFCC" stroke-width="1.5"/><rect x="22" y="20" width="7" height="7" rx="1" fill="#00FFCC"/><rect x="35" y="20" width="7" height="7" rx="1" fill="#00FFCC"/>`,
 };
 
-function MapScreen({ drops, onBack }) {
+function MapScreen({ drops, stickers, onBack }) {
   const mapRef=useRef(null); const inst=useRef(null); const [ready,setReady]=useState(false);
   useEffect(()=>{
     if(inst.current||!window.L)return;
@@ -955,7 +976,7 @@ function MapScreen({ drops, onBack }) {
 }
 
 // ─── PROFILE ────────────────────────────────────────────────────────────────
-function ProfileScreen({ user, totalScore, discovered, drops, onBack, onSignOut }) {
+function ProfileScreen({ user, totalScore, discovered, drops, stickers, onBack, onSignOut }) {
   return (
     <div style={{ minHeight:"100vh", background:"#0A0A0A" }}>
       <div style={{ padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #1A1A1A" }}>
@@ -1013,6 +1034,15 @@ export default function App() {
   const [leafletOk, setLeafletOk]     = useState(false);
   const [syncing, setSyncing]         = useState(false);
   const [pendingSession, setPendingSession] = useState(null);
+  const [stickers, setStickers]       = useState(DEFAULT_STICKERS);
+
+  // ── Load stickers from DB on mount ───────────────────────────────────────
+  useEffect(()=>{
+    fetchStickersFromDB().then(rows => {
+      STICKERS = rows; // update module-level ref used by map/validation
+      setStickers(rows);
+    });
+  },[]);
 
   // ── Load Leaflet ──────────────────────────────────────────────────────────
   useEffect(()=>{
@@ -1125,7 +1155,7 @@ export default function App() {
     if (!IS_DEMO) saveUserToDB(user.userId, { total_score:totalScore, discovered, finds });
   }, [totalScore, discovered, finds]);
 
-  const selectedSticker = STICKERS.find(s=>s.id===selected);
+  const selectedSticker = stickers.find(s=>s.id===selected);
 
   const handleAuth = (profile) => {
     setUser(profile);
@@ -1190,13 +1220,13 @@ export default function App() {
       <div className="app">
         <div className="screen">
           {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth} pendingSession={pendingSession}/>}
-          {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
-          {screen===SC.FIND        && <FindSticker discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
+          {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} stickers={stickers} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
+          {screen===SC.FIND        && <FindSticker stickers={stickers} discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
           {screen===SC.CAM         && selectedSticker && <Camera sticker={selectedSticker} onCapture={handleCapture} onBack={()=>setScreen(SC.FIND)}/>}
           {screen===SC.VALIDATING  && selectedSticker && <Validating sticker={selectedSticker}/>}
           {screen===SC.FAILED      && selectedSticker && <Failed sticker={selectedSticker} reason={failReason} onRetry={()=>setScreen(SC.CAM)} onBack={()=>setScreen(SC.FIND)}/>}
-          {screen===SC.MAP         && (leafletOk?<MapScreen drops={drops} onBack={()=>setScreen(SC.DASH)}/>:<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><Spinner/></div>)}
-          {screen===SC.PROFILE     && user && <ProfileScreen user={user} totalScore={totalScore} discovered={discovered} drops={drops} onBack={()=>setScreen(SC.DASH)} onSignOut={handleSignOut}/>}
+          {screen===SC.MAP         && (leafletOk?<MapScreen drops={drops} stickers={stickers} onBack={()=>setScreen(SC.DASH)}/>:<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><Spinner/></div>)}
+          {screen===SC.PROFILE     && user && <ProfileScreen user={user} totalScore={totalScore} discovered={discovered} drops={drops} stickers={stickers} onBack={()=>setScreen(SC.DASH)} onSignOut={handleSignOut}/>}
         </div>
         {showSuccess&&result&&selectedSticker&&<SuccessModal sticker={selectedSticker} breakdown={result.breakdown} total={result.total} isPioneer={result.isPioneer} confidence={result.confidence} onClose={()=>{setShowSuccess(false);setResult(null);}}/>}
       </div>
