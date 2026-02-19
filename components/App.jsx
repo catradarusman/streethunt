@@ -646,12 +646,8 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
   const rank = lb.findIndex(e=>e.own)+1;
 
   return (
-    <div style={{ minHeight:"100vh", background:"#0A0A0A" }}>
-      <div style={{ padding:"12px 20px 6px", display:"flex", justifyContent:"space-between" }}>
-        <span style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff30", fontSize:11 }}>9:41</span>
-        <span style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff30", fontSize:10 }}>●●●● WiFi</span>
-      </div>
-      <div style={{ padding:"4px 20px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+    <div style={{ minHeight:"100dvh", background:"#0A0A0A" }}>
+      <div style={{ padding:"16px 20px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11 }}>Welcome back.</p>
           <p style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:800 }}>@{user.username}</p>
