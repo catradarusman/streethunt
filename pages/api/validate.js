@@ -1,5 +1,6 @@
 // pages/api/validate.js
 // Server-side validation — Anthropic API key never touches the client
+// Reference images loaded from Supabase DB — manage stickers without redeploying
 
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -7,24 +8,26 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Reference images for each sticker — served from /public/stickers/
-// In production: replace with actual sticker artwork paths or Supabase Storage URLs
-const STICKER_REFERENCES = {
-  s1: "/stickers/dead-eye.jpg",
-  s2: "/stickers/neon-reaper.jpg",
-  s3: "/stickers/grin.jpg",
-  s4: "/stickers/void-king.jpg",
-  s5: "/stickers/rust-face.jpg",
-  s6: "/stickers/ghost-tag.jpg",
-  s7: "/stickers/gold-tooth.jpg",
-  s8: "/stickers/static.jpg",
-};
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON;
+
+// Fetch sticker config from Supabase DB
+async function getStickerFromDB(stickerId) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/stickers?id=eq.${stickerId}&select=id,name,reference_url,active`,
+      { headers: { "apikey": SUPABASE_ANON, "Content-Type": "application/json" } }
+    );
+    const data = await res.json();
+    return data?.[0] || null;
+  } catch {
+    return null;
+  }
+}
 
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: "10mb", // allow base64 photo uploads
-    },
+    bodyParser: { sizeLimit: "10mb" },
   },
 };
 
@@ -36,114 +39,85 @@ export default async function handler(req, res) {
   const { userPhotoBase64, referenceId, stickerName } = req.body;
 
   if (!userPhotoBase64 || !referenceId) {
-    return res.status(400).json({ error: "Missing userPhotoBase64 or referenceId" });
-  }
-
-  if (!STICKER_REFERENCES[referenceId]) {
-    return res.status(400).json({ error: "Unknown sticker reference" });
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
   try {
-    // Fetch the reference sticker image from the public folder
-    // In production with Supabase Storage, replace with the CDN URL fetch
-    const refUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${STICKER_REFERENCES[referenceId]}`;
-    const refResponse = await fetch(refUrl);
+    const sticker = await getStickerFromDB(referenceId);
+
+    if (!sticker) {
+      return res.status(400).json({ error: "Unknown sticker" });
+    }
+
+    if (!sticker.active) {
+      return res.status(400).json({ error: "This sticker is no longer active" });
+    }
 
     let messages;
+    const name = sticker.name || stickerName;
 
-    if (refResponse.ok) {
-      // If reference image is available, do a real visual comparison
-      const refBuffer = await refResponse.arrayBuffer();
-      const refBase64 = Buffer.from(refBuffer).toString("base64");
-      const refMimeType = refResponse.headers.get("content-type") || "image/jpeg";
+    // Try to fetch reference image from Supabase Storage
+    const refUrl = sticker.reference_url;
+    let refBase64 = null;
+    let refMimeType = "image/jpeg";
 
+    if (refUrl && !refUrl.includes("your-project")) {
+      try {
+        const refResponse = await fetch(refUrl);
+        if (refResponse.ok) {
+          const refBuffer = await refResponse.arrayBuffer();
+          refBase64 = Buffer.from(refBuffer).toString("base64");
+          refMimeType = refResponse.headers.get("content-type") || "image/jpeg";
+        }
+      } catch {}
+    }
+
+    if (refBase64) {
+      // FULL VISUAL COMPARISON — Claude sees reference + user photo
       messages = [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `You are validating a street art sticker hunt. 
-
-Reference sticker image (what the sticker looks like):`,
+              text: `You are validating a street art sticker hunt game called Street Hunt.\n\nA player found a sticker called "${name}" hidden in the real world and photographed it.\n\nHere is the REFERENCE IMAGE — what the sticker is supposed to look like:`,
             },
             {
               type: "image",
-              source: {
-                type: "base64",
-                media_type: refMimeType,
-                data: refBase64,
-              },
+              source: { type: "base64", media_type: refMimeType, data: refBase64 },
             },
             {
               type: "text",
-              text: `User's photo (what they photographed in the real world):`,
+              text: `Here is the PLAYER'S PHOTO — what they actually photographed:`,
             },
             {
               type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: userPhotoBase64,
-              },
+              source: { type: "base64", media_type: "image/jpeg", data: userPhotoBase64 },
             },
             {
               type: "text",
-              text: `Does the user's photo show the same sticker as the reference image?
-
-Rules:
-- The sticker may appear at different angles, sizes, or lighting conditions
-- It may be partially obscured or weathered — that's fine
-- The key artwork and shapes should match
-- Ignore background differences (wall color, surroundings)
-- A clear, deliberate photo of the same sticker design = valid
-
-Respond with JSON only, no other text:
-{
-  "valid": true or false,
-  "confidence": 0-100,
-  "reason": "one sentence explanation"
-}`,
+              text: `Does the player's photo show the same sticker as the reference?\n\nValidation rules:\n- The sticker design and artwork must match the reference\n- Different angles, lighting, or distances are fine\n- Partial visibility is fine as long as the design is recognisable\n- Weathering, fading, or slight damage is fine\n- The background (wall, street, surface) does not matter\n- INVALID: screenshots of the app, photos of other stickers, blurry unidentifiable photos, selfies\n\nBe reasonably lenient — street photos are imperfect. If the key design elements match, it is valid.\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 85, "reason": "one sentence"}`,
             },
           ],
         },
       ];
     } else {
-      // Reference image not found — validate by description only
+      // DESCRIPTION-ONLY — no reference image uploaded yet
       messages = [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `You are validating a street art sticker hunt for a sticker called "${stickerName}".
-
-The user claims to have found and photographed this sticker in the real world.`,
+              text: `You are validating a street art sticker hunt game called Street Hunt.\n\nA player claims to have found and photographed a street art sticker called "${name}".`,
             },
             {
               type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: userPhotoBase64,
-              },
+              source: { type: "base64", media_type: "image/jpeg", data: userPhotoBase64 },
             },
             {
               type: "text",
-              text: `Does this photo clearly show a street art sticker or graffiti tag?
-
-Rules:
-- Must be a real photo (not a screenshot of the app)
-- Must show some kind of sticker, tag, or street art
-- Must be in focus enough to identify it
-- Selfies or unrelated photos = invalid
-
-Respond with JSON only, no other text:
-{
-  "valid": true or false,
-  "confidence": 0-100,
-  "reason": "one sentence explanation"
-}`,
+              text: `Does this photo show a real street art sticker or tag photographed in the real world?\n\nValidation rules:\n- Must be a real-world photo, not a screenshot\n- Must show a sticker, tag, paste-up, or street art marking\n- Must be in focus enough to see what it is\n- INVALID: selfies, blank walls, unrelated objects, screenshots\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 70, "reason": "one sentence"}`,
             },
           ],
         },
@@ -152,13 +126,12 @@ Respond with JSON only, no other text:
 
     const response = await client.messages.create({
       model: "claude-opus-4-6",
-      max_tokens: 200,
+      max_tokens: 150,
       messages,
     });
 
-    // Parse Claude's JSON response
     const text = response.content[0]?.text || "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*?\}/);
 
     if (!jsonMatch) {
       return res.status(200).json({ valid: false, confidence: 0, reason: "Could not analyze photo." });
@@ -166,13 +139,13 @@ Respond with JSON only, no other text:
 
     const result = JSON.parse(jsonMatch[0]);
     return res.status(200).json({
-      valid: Boolean(result.valid),
+      valid:      Boolean(result.valid),
       confidence: Number(result.confidence) || 0,
-      reason: String(result.reason) || "",
+      reason:     String(result.reason) || "",
     });
 
   } catch (err) {
     console.error("Validation error:", err);
-    return res.status(500).json({ error: "Validation failed", reason: "Server error. Please try again." });
+    return res.status(500).json({ valid: false, confidence: 0, reason: "Server error. Please try again." });
   }
 }
