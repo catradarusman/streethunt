@@ -369,8 +369,8 @@ function OnlineStatus() {
 
 // ─── AUTH SCREEN ────────────────────────────────────────────────────────────
 // Handles: new user signup, returning user login, magic link redirect
-function AuthScreen({ onAuth }) {
-  const [stage, setStage]   = useState("email"); // email | sent | username
+function AuthScreen({ onAuth, pendingSession }) {
+  const [stage, setStage]   = useState(pendingSession ? "username" : "email");
   const [email, setEmail]   = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
@@ -445,7 +445,8 @@ function AuthScreen({ onAuth }) {
     }
 
     const avatarJson = JSON.stringify(finalAvatarData);
-    const userId = IS_DEMO ? `demo_${Date.now()}` : sb.auth.getSession()?.user?.id;
+    // Use userId from pendingSession (magic link flow) or generate demo id
+    const userId = pendingSession?.user?.id || (IS_DEMO ? `demo_${Date.now()}` : sb.auth.getSession()?.user?.id);
     const profile = { username, avatar_id: avatarJson, total_score: 0, finds: 0, discovered: [] };
     await saveUserToDB(userId, profile);
     writeCache({ userId, ...profile, ownDrops: [] });
@@ -1011,6 +1012,7 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [leafletOk, setLeafletOk]     = useState(false);
   const [syncing, setSyncing]         = useState(false);
+  const [pendingSession, setPendingSession] = useState(null);
 
   // ── Load Leaflet ──────────────────────────────────────────────────────────
   useEffect(()=>{
@@ -1020,29 +1022,37 @@ export default function App() {
   },[]);
 
   // ── Handle magic link redirect ────────────────────────────────────────────
-  // PWA key: when user clicks magic link, Supabase redirects back with
-  // #access_token=... in the URL. We catch it here on app load.
   useEffect(()=>{
     const hash = window.location.hash;
     if (!hash.includes("access_token")) {
-      // No magic link — check for existing session
       tryRestoreSession();
       return;
     }
-    // Parse token from URL hash (Supabase magic link format)
+
     const params = new URLSearchParams(hash.replace("#",""));
     const accessToken  = params.get("access_token");
     const refreshToken = params.get("refresh_token");
-    const type         = params.get("type"); // "magiclink" or "recovery"
+    const type         = params.get("type");
 
-    if (accessToken && type === "magiclink") {
-      // Store session
-      const session = { access_token: accessToken, refresh_token: refreshToken };
+    if (accessToken && (type === "magiclink" || type === "signup")) {
+      // Decode JWT payload to get user id and email (no library needed)
+      let userId = null;
+      let userEmail = null;
+      try {
+        const payload = JSON.parse(atob(accessToken.split(".")[1]));
+        userId    = payload.sub;   // Supabase user UUID
+        userEmail = payload.email;
+      } catch {}
+
+      const session = { access_token: accessToken, refresh_token: refreshToken, user: { id: userId, email: userEmail } };
       localStorage.setItem("sb_session", JSON.stringify(session));
-      // Clean URL — important for PWA so token isn't re-processed
+      // Clean URL so token isn't re-processed on refresh
       window.history.replaceState(null, "", window.location.pathname);
-      // Load user profile
       loadUserAfterAuth(session);
+    } else {
+      // Hash present but not a magic link (e.g. error) — just restore session
+      window.history.replaceState(null, "", window.location.pathname);
+      tryRestoreSession();
     }
   }, []);
 
@@ -1065,11 +1075,16 @@ export default function App() {
 
   const loadUserAfterAuth = async (session) => {
     setSyncing(true);
-    // Try to load existing profile from DB
-    const userId = session.user?.id || `authed_${Date.now()}`;
+    const userId = session.user?.id;
+    if (!userId) {
+      // Couldn't decode user ID — fall back to auth screen
+      setSyncing(false);
+      return;
+    }
+
     const dbUser = await syncUserFromDB(userId);
     if (dbUser) {
-      // Returning user — restore everything
+      // Returning user — restore full profile
       const ownDrops = await loadDropsFromDB(userId);
       const profile = { ...dbUser, userId };
       writeCache({ ...profile, ownDrops });
@@ -1081,9 +1096,11 @@ export default function App() {
       setSyncing(false);
       setScreen(SC.DASH);
     } else {
-      // New user — go to profile setup
+      // New user — session is valid, skip to username setup
+      // Pass userId + email via a pending session so AuthScreen can complete signup
       setSyncing(false);
-      setScreen(SC.AUTH); // AuthScreen will show username stage
+      setPendingSession(session);
+      setScreen(SC.AUTH);
     }
   };
 
@@ -1172,7 +1189,7 @@ export default function App() {
       <OnlineStatus/>
       <div className="app">
         <div className="screen">
-          {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth}/>}
+          {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth} pendingSession={pendingSession}/>}
           {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
           {screen===SC.FIND        && <FindSticker discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
           {screen===SC.CAM         && selectedSticker && <Camera sticker={selectedSticker} onCapture={handleCapture} onBack={()=>setScreen(SC.FIND)}/>}
