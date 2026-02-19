@@ -289,12 +289,12 @@ async function loadDropsFromDB(userId) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0A0A0A;font-family:'Barlow',sans-serif;color:#fff;overflow:hidden;height:100vh}
+body{background:#0A0A0A;font-family:'Barlow',sans-serif;color:#fff;overflow:hidden;height:100dvh}
 button{cursor:pointer;font-family:'Barlow',sans-serif}
 button:active{transform:scale(0.96)}
 input{font-family:'Barlow',sans-serif}
-.app{max-width:390px;margin:0 auto;height:100vh;overflow:hidden;background:#0A0A0A;position:relative}
-.screen{height:100vh;overflow-y:auto;animation:fadeIn 0.22s ease;scrollbar-width:none;-ms-overflow-style:none}
+.app{max-width:430px;margin:0 auto;height:100dvh;overflow:hidden;background:#0A0A0A;position:relative}
+.screen{height:100dvh;overflow-y:auto;animation:fadeIn 0.22s ease;scrollbar-width:none;-ms-overflow-style:none}
 .screen::-webkit-scrollbar{display:none}
 
 .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(0.72) saturate(0.35) contrast(1.1)!important}
@@ -932,12 +932,15 @@ function makePopupHtml(st, d, rarCfg, color) {
 
 function MapScreen({ drops, stickers, onBack }) {
   const mapRef=useRef(null); const inst=useRef(null); const [ready,setReady]=useState(false);
+  const BOTTOM_H = 130; // px reserved for recent finds panel
+
   useEffect(()=>{
     if(inst.current||!window.L)return;
     const m=window.L.map(mapRef.current,{center:[15,15],zoom:2.5,zoomControl:false,attributionControl:false,minZoom:2,maxZoom:17});
     window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{subdomains:["a","b","c"],maxZoom:17}).addTo(m);
     inst.current=m;setReady(true);
   },[]);
+
   useEffect(()=>{
     if(!ready||!inst.current)return;
     const L=window.L,m=inst.current;
@@ -948,37 +951,57 @@ function MapScreen({ drops, stickers, onBack }) {
       const rarCfg=RARITY_CONFIG[st.rarity]||RARITY_CONFIG.Common;
       const icon=L.divIcon({html:makeMarkerHtml(st,color,i*45),className:"",iconSize:[42,62],iconAnchor:[21,62],popupAnchor:[0,-66]});
       const popup=makePopupHtml(st,d,rarCfg,color);
-      L.marker([d.lat,d.lng],{icon}).addTo(m).bindPopup(popup,{maxWidth:230,className:"",closeOnClick:false,autoPan:true,autoPanPadding:[20,80]});
+      L.marker([d.lat,d.lng],{icon}).addTo(m).bindPopup(popup,{maxWidth:230,className:"",closeOnClick:false,autoPan:true,autoPanPadding:[20,100]});
     });
     const own=drops.find(d=>d.isOwn);
     if(own)m.flyTo([own.lat,own.lng],10,{duration:1.2});
   },[ready,drops]);
 
   return (
-    <div style={{ height:"100vh", position:"relative", background:"#080c10" }}>
-      <div ref={mapRef} style={{ position:"absolute", inset:0 }}/>
-      <div style={{ position:"absolute", inset:0, background:"rgba(8,10,12,0.18)", pointerEvents:"none", zIndex:400 }}/>
-      <div style={{ position:"absolute", top:0, left:0, right:0, zIndex:1000, padding:"16px 20px 20px", background:"linear-gradient(180deg,rgba(8,12,16,0.97) 0%,transparent 100%)", display:"flex", alignItems:"center", gap:12 }}>
-        <button onClick={onBack} style={{ background:"rgba(20,20,20,0.9)", border:"1px solid #2A2A2A", borderRadius:12, width:40, height:40, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(10px)" }}>←</button>
-        <div style={{ flex:1 }}>
+    <div style={{ height:"100dvh", display:"flex", flexDirection:"column", background:"#080c10", overflow:"hidden" }}>
+
+      {/* Top bar */}
+      <div style={{ flexShrink:0, zIndex:1000, padding:"14px 20px 16px", background:"rgba(8,12,16,0.97)", display:"flex", alignItems:"center", gap:12, borderBottom:"1px solid #1a1a1a" }}>
+        <button onClick={onBack} style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:12, width:40, height:40, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>←</button>
+        <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:800 }}>Hunt Map</div>
           <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff35", marginTop:1 }}>Where stickers were found</div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(198,255,0,0.1)", border:"1px solid rgba(198,255,0,0.3)", borderRadius:20, padding:"5px 12px", fontFamily:"'Space Mono',monospace", fontSize:10, color:"#C6FF00" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(198,255,0,0.1)", border:"1px solid rgba(198,255,0,0.3)", borderRadius:20, padding:"5px 12px", fontFamily:"'Space Mono',monospace", fontSize:10, color:"#C6FF00", flexShrink:0 }}>
           <div style={{ width:5,height:5,background:"#C6FF00",borderRadius:"50%",animation:"livePulse 1.5s ease-in-out infinite" }}/>
           {drops.length} DROPS
         </div>
       </div>
-      <div style={{ position:"absolute", bottom:0, left:0, right:0, zIndex:1000, background:"linear-gradient(0deg,rgba(8,10,12,0.98) 55%,transparent 100%)", paddingTop:36, paddingBottom:24 }}>
+
+      {/* Map — fills remaining space above bottom panel */}
+      <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+        <div ref={mapRef} style={{ position:"absolute", inset:0 }}/>
+        <div style={{ position:"absolute", inset:0, background:"rgba(8,10,12,0.12)", pointerEvents:"none", zIndex:400 }}/>
+      </div>
+
+      {/* Bottom panel — always visible, fixed height */}
+      <div style={{ flexShrink:0, zIndex:1000, background:"rgba(8,10,12,0.98)", borderTop:"1px solid #1e1e1e", paddingTop:12, paddingBottom:"max(16px, env(safe-area-inset-bottom))" }}>
         <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff25", letterSpacing:"0.1em", padding:"0 20px 10px" }}>RECENT FINDS</div>
-        <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 20px", scrollbarWidth:"none" }}>
-          {drops.map(d=>{const st=stickers.find(s=>s.id===d.stickerId)||stickers[0]||{name:"?",color:"#C6FF00",art_url:null};return(
-            <div key={d.id} onClick={()=>inst.current?.flyTo([d.lat,d.lng],13,{duration:1.1})} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(20,20,20,0.95)", border:`1px solid ${d.isOwn?"rgba(198,255,0,0.35)":"#2A2A2A"}`, borderRadius:12, padding:"8px 12px", cursor:"pointer", flexShrink:0, backdropFilter:"blur(10px)" }}>
-              <div style={{ width:28,height:28,background:"#141414",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}><StickerIcon sticker={st} size={22}/></div>
-              <div><div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:800, color:d.isOwn?"#C6FF00":"#fff" }}>{st.name}</div><div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"rgba(255,255,255,0.25)" }}>@{d.owner} · {d.city}</div></div>
+        {drops.length === 0
+          ? <div style={{ padding:"0 20px 4px", fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff20" }}>No finds yet — be the first!</div>
+          : <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 20px 4px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch" }}>
+              {drops.map(d=>{
+                const st=stickers.find(s=>s.id===d.stickerId)||stickers[0]||{name:"?",color:"#C6FF00",art_url:null};
+                return(
+                  <div key={d.id} onClick={()=>inst.current?.flyTo([d.lat,d.lng],13,{duration:1.1})}
+                    style={{ display:"flex", alignItems:"center", gap:8, background:"#141414", border:`1px solid ${d.isOwn?"rgba(198,255,0,0.35)":"#2A2A2A"}`, borderRadius:12, padding:"8px 12px", cursor:"pointer", flexShrink:0 }}>
+                    <div style={{ width:30,height:30,background:"#0d0d0d",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0 }}>
+                      <StickerIcon sticker={st} size={24}/>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, fontWeight:800, color:d.isOwn?"#C6FF00":"#fff", whiteSpace:"nowrap" }}>{st.name}</div>
+                      <div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"rgba(255,255,255,0.25)", whiteSpace:"nowrap" }}>@{d.owner} · {d.city}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );})}
-        </div>
+        }
       </div>
     </div>
   );
