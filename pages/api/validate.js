@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     }
 
     if (refBase64) {
-      // FULL VISUAL COMPARISON — Claude sees reference + user photo
+      // CONCEPT-BASED VALIDATION — Claude checks same subject/concept, not exact visual match
       messages = [
         {
           role: "user",

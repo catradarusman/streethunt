@@ -166,11 +166,24 @@ User selects sticker from grid
   → POST /api/validate (server-side only)
   → Fetch reference image from Supabase Storage (stored in stickers.reference_url)
   → Claude receives: reference image + user photo
+  → Claude checks: does the photo show the same concept/subject as the reference?
   → Claude returns: { valid, confidence, reason }
   → Valid: pin drops on map, points awarded
   → Invalid: retry screen with tips
   → Fallback: if no reference image uploaded yet, Claude checks for real street art only
 ```
+
+**Validation approach — concept recognition, not exact match:**
+
+Claude validates based on the *concept or subject* shown, not a pixel-perfect visual comparison. If the reference is an upward arrow, any sticker that is recognisably an upward arrow is valid — regardless of art style.
+
+| What's accepted | What's rejected |
+|---|---|
+| Different art styles (pixel, graffiti, paintbrush, minimal) | A sticker of a clearly different subject |
+| Size, proportion, or orientation variations | Screenshots of the app |
+| Extra decorations on top of the main design | Completely blurry/unidentifiable photos |
+| Different angles, lighting, distances | Selfies with no sticker visible |
+| Weathering, fading, or partial visibility | |
 
 The Anthropic API key never touches the browser.
 
