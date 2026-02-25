@@ -1,5 +1,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Override PWA scroll-lock — only active when html.admin-page class is present */
+html.admin-page,
+html.admin-page body {
+  height: auto !important;
+  overflow: auto !important;
+  overscroll-behavior: auto !important;
+}
+
+html.admin-page #__next {
+  height: auto !important;
+}
+
 body {
   background: #0A0A0A;
   color: #ffffff;

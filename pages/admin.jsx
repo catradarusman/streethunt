@@ -35,6 +35,12 @@ export default function AdminPage() {
   const [msg, setMsg]             = useState("");
   const [uploading, setUploading] = useState({});
 
+  // Add class to <html> so admin.css can override the PWA scroll-lock from globals.css
+  useEffect(() => {
+    document.documentElement.classList.add("admin-page");
+    return () => document.documentElement.classList.remove("admin-page");
+  }, []);
+
   useEffect(() => {
     const saved = sessionStorage.getItem("admin_secret");
     if (saved) { setSecret(saved); setAuthed(true); }
