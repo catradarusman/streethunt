@@ -3,8 +3,16 @@
 // Protected by ADMIN_SECRET env var
 
 import { useState, useEffect, useRef } from "react";
+import Head from "next/head";
 
 const RARITIES = ["Common", "Rare", "Epic", "Legendary"];
+
+const RARITY_COLOR = {
+  Common: "#aaa",
+  Rare: "#8B5CF6",
+  Epic: "#EC4899",
+  Legendary: "#FFD700",
+};
 
 const EMPTY_STICKER = {
   id: "",
@@ -22,12 +30,11 @@ export default function AdminPage() {
   const [secret, setSecret]       = useState("");
   const [authed, setAuthed]       = useState(false);
   const [stickers, setStickers]   = useState([]);
-  const [editing, setEditing]     = useState({}); // { [id]: stickerObj }
+  const [editing, setEditing]     = useState({});
   const [newRow, setNewRow]       = useState(EMPTY_STICKER);
   const [msg, setMsg]             = useState("");
-  const [uploading, setUploading] = useState({}); // { [key]: bool }
+  const [uploading, setUploading] = useState({});
 
-  // Persist session
   useEffect(() => {
     const saved = sessionStorage.getItem("admin_secret");
     if (saved) { setSecret(saved); setAuthed(true); }
@@ -67,7 +74,8 @@ export default function AdminPage() {
       headers: headers(),
       body: JSON.stringify(payload),
     });
-    setMsg(res.ok ? `Saved ${id}` : `Error saving ${id}`);
+    setMsg(res.ok ? `✓ Saved ${id}` : `✗ Error saving ${id}`);
+    setTimeout(() => setMsg(""), 3000);
   }
 
   async function createSticker(e) {
@@ -79,11 +87,12 @@ export default function AdminPage() {
       body: JSON.stringify(newRow),
     });
     if (res.ok) {
-      setMsg(`Created ${newRow.id}`);
+      setMsg(`✓ Created ${newRow.id}`);
       setNewRow(EMPTY_STICKER);
       loadStickers();
+      setTimeout(() => setMsg(""), 3000);
     } else {
-      setMsg("Error creating sticker");
+      setMsg("✗ Error creating sticker");
     }
   }
 
@@ -109,9 +118,10 @@ export default function AdminPage() {
     if (res.ok) {
       const { url } = await res.json();
       setEditing((e) => ({ ...e, [stickerId]: { ...e[stickerId], [field]: url } }));
-      setMsg(`Uploaded ${field} for ${stickerId}`);
+      setMsg(`✓ Uploaded ${field} for ${stickerId}`);
+      setTimeout(() => setMsg(""), 3000);
     } else {
-      setMsg("Upload failed");
+      setMsg("✗ Upload failed");
     }
   }
 
@@ -121,167 +131,262 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <div style={styles.center}>
-        <form onSubmit={login} style={styles.loginBox}>
-          <h2 style={{ marginBottom: 16 }}>Street Hunt Admin</h2>
-          <input
-            type="password"
-            placeholder="Admin password"
-            value={secret}
-            onChange={(e) => setSecret(e.target.value)}
-            style={styles.input}
-            autoFocus
-          />
-          <button type="submit" style={styles.btn}>Enter</button>
-          {msg && <p style={{ color: "red", marginTop: 8 }}>{msg}</p>}
-        </form>
-      </div>
+      <>
+        <Head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+        </Head>
+        <div className="center-screen">
+          <form onSubmit={login} className="login-box">
+            <h1 className="login-title">STREET HUNT</h1>
+            <p className="login-sub">ADMIN PANEL</p>
+            <input
+              type="password"
+              placeholder="Enter admin password"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              className="field-input"
+              autoFocus
+            />
+            <button type="submit" className="btn-primary">ENTER</button>
+            {msg && <p className="error-msg">{msg}</p>}
+          </form>
+        </div>
+      </>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={{ margin: 0 }}>Street Hunt Admin</h1>
-        <button onClick={() => { sessionStorage.removeItem("admin_secret"); setAuthed(false); }} style={styles.btnSm}>
-          Log out
-        </button>
-      </div>
+    <>
+      <Head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+      </Head>
 
-      {msg && (
-        <div style={styles.toast} onClick={() => setMsg("")}>{msg}</div>
-      )}
+      <div className="page">
+        <div className="page-header">
+          <h1 className="page-title">STREET HUNT <span className="accent">ADMIN</span></h1>
+          <button
+            className="btn-ghost"
+            onClick={() => { sessionStorage.removeItem("admin_secret"); setAuthed(false); }}
+          >
+            LOG OUT
+          </button>
+        </div>
 
-      <h2 style={{ marginTop: 32 }}>Stickers</h2>
-      <div style={{ overflowX: "auto" }}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {["ID","Name","Rarity","Pts","Hint","Color","Active","Art Image","Ref Image",""].map((h) => (
-                <th key={h} style={styles.th}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {stickers.map((s) => {
-              const row = editing[s.id] || s;
-              return (
-                <tr key={s.id}>
-                  <td style={styles.td}><code>{s.id}</code></td>
-                  <td style={styles.td}>
-                    <input value={row.name} onChange={(e) => fieldChange(s.id, "name", e.target.value)} style={styles.cellInput} />
-                  </td>
-                  <td style={styles.td}>
-                    <select value={row.rarity} onChange={(e) => fieldChange(s.id, "rarity", e.target.value)} style={styles.cellInput}>
+        {msg && <div className="toast" onClick={() => setMsg("")}>{msg}</div>}
+
+        <h2 className="section-title">STICKERS</h2>
+
+        <div className="cards">
+          {stickers.map((s) => {
+            const row = editing[s.id] || s;
+            const rc = RARITY_COLOR[row.rarity] || "#aaa";
+            return (
+              <div key={s.id} className="card" style={{ borderColor: `${rc}33` }}>
+                <div className="card-header">
+                  <span className="sticker-id">{s.id}</span>
+                  <span className="rarity-badge" style={{ color: rc, borderColor: `${rc}55`, background: `${rc}11` }}>
+                    {row.rarity}
+                  </span>
+                  <label className="active-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!row.active}
+                      onChange={(e) => fieldChange(s.id, "active", e.target.checked)}
+                    />
+                    <span>{row.active ? "ACTIVE" : "INACTIVE"}</span>
+                  </label>
+                </div>
+
+                <div className="field-grid">
+                  <label className="field-label">
+                    NAME
+                    <input
+                      className="field-input"
+                      value={row.name}
+                      onChange={(e) => fieldChange(s.id, "name", e.target.value)}
+                    />
+                  </label>
+                  <label className="field-label">
+                    RARITY
+                    <select
+                      className="field-input"
+                      value={row.rarity}
+                      onChange={(e) => fieldChange(s.id, "rarity", e.target.value)}
+                    >
                       {RARITIES.map((r) => <option key={r}>{r}</option>)}
                     </select>
-                  </td>
-                  <td style={styles.td}>
-                    <input type="number" value={row.pts} onChange={(e) => fieldChange(s.id, "pts", Number(e.target.value))} style={{ ...styles.cellInput, width: 60 }} />
-                  </td>
-                  <td style={styles.td}>
-                    <input value={row.hint || ""} onChange={(e) => fieldChange(s.id, "hint", e.target.value)} style={{ ...styles.cellInput, width: 180 }} />
-                  </td>
-                  <td style={styles.td}>
-                    <input type="color" value={row.color || "#ffffff"} onChange={(e) => fieldChange(s.id, "color", e.target.value)} style={{ width: 44, height: 28, cursor: "pointer" }} />
-                  </td>
-                  <td style={styles.td}>
-                    <input type="checkbox" checked={!!row.active} onChange={(e) => fieldChange(s.id, "active", e.target.checked)} />
-                  </td>
-                  <td style={styles.td}>
+                  </label>
+                  <label className="field-label">
+                    POINTS
+                    <input
+                      className="field-input"
+                      type="number"
+                      value={row.pts}
+                      onChange={(e) => fieldChange(s.id, "pts", Number(e.target.value))}
+                    />
+                  </label>
+                  <label className="field-label">
+                    COLOR
+                    <div className="color-row">
+                      <input
+                        type="color"
+                        value={row.color || "#ffffff"}
+                        onChange={(e) => fieldChange(s.id, "color", e.target.value)}
+                        className="color-swatch"
+                      />
+                      <span className="color-hex">{row.color || "#ffffff"}</span>
+                    </div>
+                  </label>
+                  <label className="field-label field-full">
+                    HINT
+                    <input
+                      className="field-input"
+                      value={row.hint || ""}
+                      onChange={(e) => fieldChange(s.id, "hint", e.target.value)}
+                      placeholder="Location hint for players"
+                    />
+                  </label>
+                </div>
+
+                <div className="image-row">
+                  <div className="image-slot">
+                    <span className="field-label-text">ART IMAGE</span>
                     <ImageCell
                       url={row.art_url}
                       loading={uploading[`${s.id}-art_url`]}
                       onUpload={(file) => uploadImage(s.id, "art_url", file)}
                       onClear={() => fieldChange(s.id, "art_url", "")}
                     />
-                  </td>
-                  <td style={styles.td}>
+                  </div>
+                  <div className="image-slot">
+                    <span className="field-label-text">REFERENCE IMAGE <span className="accent">(Claude uses this)</span></span>
                     <ImageCell
                       url={row.reference_url}
                       loading={uploading[`${s.id}-reference_url`]}
                       onUpload={(file) => uploadImage(s.id, "reference_url", file)}
                       onClear={() => fieldChange(s.id, "reference_url", "")}
                     />
-                  </td>
-                  <td style={styles.td}>
-                    <button onClick={() => saveSticker(s.id)} style={styles.btnSm}>Save</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </div>
 
-      <h2 style={{ marginTop: 40 }}>Add New Sticker</h2>
-      <form onSubmit={createSticker} style={styles.newForm}>
-        {[
-          { label: "ID*", field: "id", type: "text", width: 80 },
-          { label: "Name*", field: "name", type: "text", width: 140 },
-          { label: "Pts", field: "pts", type: "number", width: 60 },
-          { label: "Hint", field: "hint", type: "text", width: 200 },
-          { label: "Color", field: "color", type: "color", width: 44 },
-        ].map(({ label, field, type, width }) => (
-          <label key={field} style={styles.formLabel}>
-            {label}
-            <input
-              type={type}
-              value={newRow[field]}
-              onChange={(e) => setNewRow((r) => ({ ...r, [field]: type === "number" ? Number(e.target.value) : e.target.value }))}
-              style={{ ...styles.input, width, marginTop: 4 }}
-              required={label.endsWith("*")}
-            />
-          </label>
-        ))}
-        <label style={styles.formLabel}>
-          Rarity
-          <select value={newRow.rarity} onChange={(e) => setNewRow((r) => ({ ...r, rarity: e.target.value }))} style={{ ...styles.input, marginTop: 4 }}>
-            {RARITIES.map((r) => <option key={r}>{r}</option>)}
-          </select>
-        </label>
-        <button type="submit" style={{ ...styles.btn, alignSelf: "flex-end" }}>Create</button>
-      </form>
-    </div>
+                <div className="card-footer">
+                  <button className="btn-primary" onClick={() => saveSticker(s.id)}>SAVE</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <h2 className="section-title" style={{ marginTop: 48 }}>ADD NEW STICKER</h2>
+        <form onSubmit={createSticker} className="card">
+          <div className="field-grid">
+            <label className="field-label">
+              ID <span className="accent">*</span>
+              <input
+                className="field-input"
+                value={newRow.id}
+                onChange={(e) => setNewRow((r) => ({ ...r, id: e.target.value }))}
+                placeholder="e.g. s9"
+                required
+              />
+            </label>
+            <label className="field-label">
+              NAME <span className="accent">*</span>
+              <input
+                className="field-input"
+                value={newRow.name}
+                onChange={(e) => setNewRow((r) => ({ ...r, name: e.target.value }))}
+                placeholder="Sticker name"
+                required
+              />
+            </label>
+            <label className="field-label">
+              RARITY
+              <select
+                className="field-input"
+                value={newRow.rarity}
+                onChange={(e) => setNewRow((r) => ({ ...r, rarity: e.target.value }))}
+              >
+                {RARITIES.map((r) => <option key={r}>{r}</option>)}
+              </select>
+            </label>
+            <label className="field-label">
+              POINTS
+              <input
+                className="field-input"
+                type="number"
+                value={newRow.pts}
+                onChange={(e) => setNewRow((r) => ({ ...r, pts: Number(e.target.value) }))}
+              />
+            </label>
+            <label className="field-label">
+              COLOR
+              <div className="color-row">
+                <input
+                  type="color"
+                  value={newRow.color}
+                  onChange={(e) => setNewRow((r) => ({ ...r, color: e.target.value }))}
+                  className="color-swatch"
+                />
+                <span className="color-hex">{newRow.color}</span>
+              </div>
+            </label>
+            <label className="field-label field-full">
+              HINT
+              <input
+                className="field-input"
+                value={newRow.hint}
+                onChange={(e) => setNewRow((r) => ({ ...r, hint: e.target.value }))}
+                placeholder="Location hint for players"
+              />
+            </label>
+          </div>
+          <div className="card-footer">
+            <button type="submit" className="btn-primary">CREATE STICKER</button>
+          </div>
+        </form>
+
+        <div style={{ height: 48 }} />
+      </div>
+    </>
   );
 }
 
 function ImageCell({ url, loading, onUpload, onClear }) {
   const ref = useRef();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 140 }}>
+    <div className="image-cell">
       {url ? (
-        <>
-          <a href={url} target="_blank" rel="noreferrer">
-            <img src={url} alt="" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4, border: "1px solid #444" }} />
-          </a>
-          <button onClick={onClear} style={styles.btnXs} title="Clear URL">✕</button>
-        </>
+        <a href={url} target="_blank" rel="noreferrer">
+          <img src={url} alt="" className="image-thumb" />
+        </a>
       ) : (
-        <span style={{ color: "#666", fontSize: 12 }}>none</span>
+        <div className="image-empty">NO IMAGE</div>
       )}
-      <button onClick={() => ref.current.click()} style={styles.btnXs} disabled={loading}>
-        {loading ? "…" : "Upload"}
-      </button>
-      <input ref={ref} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUpload(e.target.files[0])} />
+      <div className="image-actions">
+        <button
+          className="btn-ghost"
+          onClick={() => ref.current.click()}
+          disabled={loading}
+        >
+          {loading ? "UPLOADING…" : "UPLOAD"}
+        </button>
+        {url && (
+          <button className="btn-ghost btn-danger" onClick={onClear}>CLEAR</button>
+        )}
+      </div>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => e.target.files[0] && onUpload(e.target.files[0])}
+      />
     </div>
   );
 }
 
-const styles = {
-  page: { padding: "24px 32px", fontFamily: "system-ui, sans-serif", maxWidth: 1200, margin: "0 auto" },
-  center: { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between" },
-  loginBox: { display: "flex", flexDirection: "column", gap: 12, padding: 32, border: "1px solid #ccc", borderRadius: 8, minWidth: 280 },
-  input: { padding: "6px 10px", border: "1px solid #ccc", borderRadius: 4, fontSize: 14 },
-  cellInput: { padding: "4px 6px", border: "1px solid #ccc", borderRadius: 4, fontSize: 13, width: 120 },
-  btn: { padding: "8px 16px", background: "#111", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14 },
-  btnSm: { padding: "4px 10px", background: "#111", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 },
-  btnXs: { padding: "2px 7px", background: "#333", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11 },
-  table: { borderCollapse: "collapse", width: "100%", fontSize: 13 },
-  th: { textAlign: "left", padding: "8px 10px", borderBottom: "2px solid #ddd", whiteSpace: "nowrap" },
-  td: { padding: "6px 10px", borderBottom: "1px solid #eee", verticalAlign: "middle" },
-  toast: { background: "#222", color: "#fff", padding: "8px 16px", borderRadius: 6, display: "inline-block", cursor: "pointer", marginTop: 8, fontSize: 13 },
-  newForm: { display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end", padding: 20, background: "#f8f8f8", borderRadius: 8 },
-  formLabel: { display: "flex", flexDirection: "column", fontSize: 12, fontWeight: 600, gap: 2 },
-};
