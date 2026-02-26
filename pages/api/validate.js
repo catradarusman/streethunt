@@ -80,7 +80,7 @@ export default async function handler(req, res) {
           content: [
             {
               type: "text",
-              text: `You are validating a street art sticker hunt game called Street Hunt.\n\nA player found a sticker called "${name}" hidden in the real world and photographed it.\n\nHere is the REFERENCE IMAGE — what the sticker is supposed to look like:`,
+              text: `You are validating a scavenger hunt game called Street Hunt.\n\nA player photographed something in the real world that they believe matches the target called "${name}".\n\nHere is the REFERENCE IMAGE — the shape or concept players need to find:`,
             },
             {
               type: "image",
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
             },
             {
               type: "text",
-              text: `Does the player's photo show a sticker that represents the same concept or subject as the reference?\n\nValidation rules:\n- Focus on the CONCEPT and RECOGNISABLE SHAPE/SUBJECT, not the exact visual style\n- Art style differences are completely fine: pixel art, graffiti, paintbrush, minimal, detailed, colourful, monochrome — all OK\n- Size, proportions, and orientation variations are fine\n- Extra elements or decorations on top of the main design are fine\n- Different angles, lighting, or distances are fine\n- Partial visibility is fine as long as the core concept is still recognisable\n- Weathering, fading, or damage is fine\n- The background (wall, street, surface) does not matter\n- INVALID: screenshots of the app, a sticker that represents a clearly different subject or concept, completely unidentifiable blurry photos, selfies with no sticker visible\n\nExample: if the reference shows an upward arrow icon, any sticker that is recognisably an upward arrow shape is valid — regardless of whether it's pixel art, a painted arrow, a graffiti arrow, or a simple printed arrow.\n\nBe generous. If a reasonable person would say "yes, that's the same type of sticker", it is valid.\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 85, "reason": "one sentence"}`,
+              text: `Does the player's photo show the same shape or concept as the reference?\n\nValidation rules:\n- The player's photo does NOT need to be a sticker — it can be ANY real-world object that displays the matching shape or concept: a sticker, a sign, a billboard, a printed t-shirt, a logo on a wall, street art, a label, a badge, graffiti, etc.\n- Focus on the CONCEPT and RECOGNISABLE SHAPE/SUBJECT, not the exact visual style or medium\n- Art style differences are completely fine: pixel art, graffiti, paintbrush, minimal, detailed, colourful, monochrome — all OK\n- Size, proportions, and orientation variations are fine\n- Extra elements or decorations around the main shape are fine\n- Different angles, lighting, or distances are fine\n- Partial visibility is fine as long as the core concept is still recognisable\n- Weathering, fading, or damage is fine\n- The background and surface do not matter\n- INVALID: screenshots of the app, a photo that clearly shows a completely different subject or concept, completely unidentifiable blurry photos, selfies with nothing relevant visible\n\nExample: if the reference shows an upward arrow, a photo of a road sign with an upward arrow, a billboard with an upward arrow, a t-shirt print with an upward arrow, or a painted arrow on a wall are all valid — not just stickers.\n\nBe generous. If a reasonable person would say "yes, that photo contains the same shape or concept", it is valid.\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 85, "reason": "one sentence"}`,
             },
           ],
         },
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
           content: [
             {
               type: "text",
-              text: `You are validating a street art sticker hunt game called Street Hunt.\n\nA player claims to have found and photographed a street art sticker called "${name}".`,
+              text: `You are validating a scavenger hunt game called Street Hunt.\n\nA player claims to have found and photographed something matching the target called "${name}".`,
             },
             {
               type: "image",
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
             },
             {
               type: "text",
-              text: `Does this photo show a real street art sticker or tag photographed in the real world?\n\nValidation rules:\n- Must be a real-world photo, not a screenshot\n- Must show a sticker, tag, paste-up, or street art marking\n- Must be in focus enough to see what it is\n- INVALID: selfies, blank walls, unrelated objects, screenshots\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 70, "reason": "one sentence"}`,
+              text: `Does this photo show a real-world object that could plausibly match the target named "${name}"?\n\nValidation rules:\n- Must be a real-world photo, not a screenshot\n- The subject can be anything in the real world: a sticker, sign, billboard, t-shirt print, logo, street art, label, graffiti, etc.\n- Must be in focus enough to see what it is\n- INVALID: selfies, blank walls, completely unrelated objects, screenshots\n\nRespond with JSON only, no markdown, no other text:\n{"valid": true, "confidence": 70, "reason": "one sentence"}`,
             },
           ],
         },
