@@ -1,6 +1,6 @@
 # Street Hunt
 
-A real-world sticker scavenger hunt PWA. Find stickers hidden around the city, photograph them, earn points, own the map.
+A real-world scavenger hunt PWA. Find targets hidden around the city, photograph them, earn points, own the map.
 
 ---
 
@@ -170,19 +170,19 @@ User selects sticker from grid
   → Claude returns: { valid, confidence, reason }
   → Valid: pin drops on map, points awarded
   → Invalid: retry screen with tips
-  → Fallback: if no reference image uploaded yet, Claude checks for real street art only
+  → Fallback: if no reference image uploaded yet, Claude checks for any real-world object matching the target name
 ```
 
 **Validation approach — concept recognition, not exact match:**
 
-Claude validates based on the *concept or subject* shown, not a pixel-perfect visual comparison. If the reference is an upward arrow, any sticker that is recognisably an upward arrow is valid — regardless of art style.
+Claude validates based on the *concept or subject* shown, not a pixel-perfect visual comparison. If the reference is an upward arrow, any real-world object showing an upward arrow is valid — sticker, sign, billboard, t-shirt, graffiti, etc.
 
 | What's accepted | What's rejected |
 |---|---|
-| Different art styles (pixel, graffiti, paintbrush, minimal) | A sticker of a clearly different subject |
+| Different art styles (pixel, graffiti, paintbrush, minimal) | A photo of a clearly different subject |
 | Size, proportion, or orientation variations | Screenshots of the app |
 | Extra decorations on top of the main design | Completely blurry/unidentifiable photos |
-| Different angles, lighting, distances | Selfies with no sticker visible |
+| Different angles, lighting, distances | Selfies with nothing relevant visible |
 | Weathering, fading, or partial visibility | |
 
 The Anthropic API key never touches the browser.

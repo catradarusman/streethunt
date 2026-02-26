@@ -703,7 +703,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
           style={{ width:"100%", padding:"16px", background:"#141414", border:"1px solid #2A2A2A", borderRadius:14, color:"#fff", fontSize:15, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, letterSpacing:"0.06em", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}
           onMouseEnter={e=>{e.currentTarget.style.borderColor="#C6FF00";e.currentTarget.style.color="#C6FF00"}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor="#2A2A2A";e.currentTarget.style.color="#fff"}}>
-          🔍 I FOUND A STICKER
+          🔍 I FOUND A MATCH
         </button>
       </div>
 
@@ -740,7 +740,7 @@ function FindSticker({ stickers, discovered, onSelect, onBack }) {
       <div style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:14, borderBottom:"1px solid #1A1A1A" }}>
         <button onClick={onBack} style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:10, width:38, height:38, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>←</button>
         <div>
-          <h1 style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:26, fontWeight:800 }}>Found a Sticker?</h1>
+          <h1 style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:26, fontWeight:800 }}>Found a Match?</h1>
           <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff35", marginTop:1 }}>Select the one you spotted IRL</p>
         </div>
       </div>
@@ -808,7 +808,7 @@ function Camera({ sticker, onCapture, onBack }) {
         <button onClick={onBack} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:10, width:36, height:36, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>←</button>
         <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(0,0,0,0.75)", border:`1px solid ${sticker.color}50`, borderRadius:12, padding:"6px 12px 6px 8px", backdropFilter:"blur(10px)" }}>
           <div style={{ width:28, height:28, background:"#111", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}><StickerIcon sticker={sticker} size={24}/></div>
-          <div><div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, fontWeight:800, color:sticker.color }}>{sticker.name}</div><div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"#ffffff40" }}>Match this sticker</div></div>
+          <div><div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:14, fontWeight:800, color:sticker.color }}>{sticker.name}</div><div style={{ fontFamily:"'Space Mono',monospace", fontSize:8, color:"#ffffff40" }}>Match this concept</div></div>
         </div>
         <div style={{ width:36 }}/>
       </div>
@@ -900,11 +900,11 @@ function Failed({ sticker, reason, onRetry, onBack }) {
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, lineHeight:1.7, maxWidth:260 }}>{reason}</p>
       </div>
       <div style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:14, padding:"14px 18px", width:"100%", maxWidth:300 }}>
-        <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff35", lineHeight:1.8 }}>💡 Tips:<br/>· Get closer to the sticker<br/>· Good lighting, no shadows<br/>· Hold the camera steady</p>
+        <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff35", lineHeight:1.8 }}>💡 Tips:<br/>· Get closer to what you found<br/>· Good lighting, no shadows<br/>· Hold the camera steady</p>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%" }}>
         <button onClick={onRetry} style={{ padding:"16px", background:"#C6FF00", border:"none", borderRadius:14, color:"#0A0A0A", fontSize:15, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, letterSpacing:"0.06em" }}>TRY AGAIN</button>
-        <button onClick={onBack} style={{ padding:"14px", background:"none", border:"1px solid #2A2A2A", borderRadius:14, color:"#ffffff35", fontSize:12, fontFamily:"'Space Mono',monospace" }}>Back to sticker list</button>
+        <button onClick={onBack} style={{ padding:"14px", background:"none", border:"1px solid #2A2A2A", borderRadius:14, color:"#ffffff35", fontSize:12, fontFamily:"'Space Mono',monospace" }}>Back to list</button>
       </div>
     </div>
   );
@@ -961,7 +961,7 @@ function MapScreen({ drops, stickers, onBack }) {
         <button onClick={onBack} style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:12, width:40, height:40, color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>←</button>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:800 }}>Hunt Map</div>
-          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff35", marginTop:1 }}>Where stickers were found</div>
+          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff35", marginTop:1 }}>Where targets were found</div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(198,255,0,0.1)", border:"1px solid rgba(198,255,0,0.3)", borderRadius:20, padding:"5px 12px", fontFamily:"'Space Mono',monospace", fontSize:10, color:"#C6FF00", flexShrink:0 }}>
           <div style={{ width:5,height:5,background:"#C6FF00",borderRadius:"50%",animation:"livePulse 1.5s ease-in-out infinite" }}/>

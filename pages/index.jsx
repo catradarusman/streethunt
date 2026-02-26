@@ -9,7 +9,7 @@ export default function Home() {
     <>
       <Head>
         <title>Street Hunt</title>
-        <meta name="description" content="Find stickers hidden around the city. Photograph them. Earn points. Own the map."/>
+        <meta name="description" content="Find targets hidden around the city. Photograph them. Earn points. Own the map."/>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
         <meta name="theme-color" content="#0A0A0A"/>
         <meta name="mobile-web-app-capable" content="yes"/>

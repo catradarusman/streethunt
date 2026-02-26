@@ -1,7 +1,7 @@
 {
   "name": "Street Hunt",
   "short_name": "Street Hunt",
-  "description": "Find stickers hidden around the city. Photograph them. Earn points. Own the map.",
+  "description": "Find targets hidden around the city. Photograph them. Earn points. Own the map.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
