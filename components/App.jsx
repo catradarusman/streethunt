@@ -9,11 +9,21 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON || "";
 const sb = {
   auth: {
     async signInWithOtp(email) {
+      // Generate PKCE code verifier + challenge so Supabase uses PKCE flow
+      const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+      const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+      const challenge = btoa(String.fromCharCode(...new Uint8Array(hashBuf)))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+      localStorage.setItem("sb_pkce_verifier", verifier);
+
       const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
         method: "POST",
         headers: { "Content-Type":"application/json", "apikey":SUPABASE_ANON },
         body: JSON.stringify({
           email,
+          code_challenge: challenge,
+          code_challenge_method: "s256",
           options: {
             // PWA deeplink — must match your Supabase redirect URL whitelist
             emailRedirectTo: window.location.origin + window.location.pathname
@@ -23,17 +33,25 @@ const sb = {
       return res.ok ? { error:null } : { error: await res.json() };
     },
 
-    async exchangeCodeForSession(token) {
-      // Called when user clicks magic link and is redirected back
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=magiclink`, {
+    async exchangeCodeForSession(code) {
+      // PKCE: exchange the authorization code + stored verifier for real tokens
+      const codeVerifier = localStorage.getItem("sb_pkce_verifier");
+      localStorage.removeItem("sb_pkce_verifier");
+      // Verifier lives in the browser that sent the OTP — if it's missing the
+      // magic link was opened on a different device/browser than where it was requested
+      if (!codeVerifier) {
+        return { session: null, error: { message: "different_device" } };
+      }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
         method: "POST",
         headers: { "Content-Type":"application/json", "apikey":SUPABASE_ANON },
-        body: JSON.stringify({ token })
+        body: JSON.stringify({ auth_code: code, code_verifier: codeVerifier })
       });
       const data = await res.json();
       if (data.access_token) {
-        localStorage.setItem("sb_session", JSON.stringify(data));
-        return { session: data, error: null };
+        const session = { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+        localStorage.setItem("sb_session", JSON.stringify(session));
+        return { session, error: null };
       }
       return { session: null, error: data };
     },
@@ -391,12 +409,12 @@ function OnlineStatus() {
 
 // ─── AUTH SCREEN ────────────────────────────────────────────────────────────
 // Handles: new user signup, returning user login, magic link redirect
-function AuthScreen({ onAuth, pendingSession }) {
+function AuthScreen({ onAuth, pendingSession, initialError="" }) {
   const [stage, setStage]   = useState(pendingSession ? "username" : "email");
   const [email, setEmail]   = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState("");
+  const [error, setError]   = useState(initialError);
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -862,7 +880,7 @@ function Validating({ sticker }) {
       <div style={{ position:"relative", zIndex:1, background:"rgba(255,255,255,0.95)", borderRadius:24, padding:"36px 28px", maxWidth:290, width:"calc(100% - 48px)", textAlign:"center", boxShadow:"0 24px 60px rgba(0,0,0,0.9)", animation:"scaleIn 0.3s ease" }}>
         <div style={{ animation:"float 2s ease-in-out infinite", marginBottom:20, display:"flex", justifyContent:"center" }}><StickerIcon sticker={sticker} size={72}/></div>
         <h3 style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#0A0A0A", fontSize:24, fontWeight:800, marginBottom:6 }}>Analyzing Photo...</h3>
-        <p style={{ fontFamily:"'Space Mono',monospace", color:"#666", fontSize:11, lineHeight:1.7, marginBottom:22 }}>Claude AI is comparing your photo against the <strong>{sticker.name}</strong> reference.</p>
+        <p style={{ fontFamily:"'Space Mono',monospace", color:"#666", fontSize:11, lineHeight:1.7, marginBottom:22 }}>The scanner is verifying your photo against the <strong>{sticker.name}</strong> reference.</p>
         <div style={{ height:3, background:"#eee", borderRadius:2, overflow:"hidden" }}>
           <div style={{ height:"100%", width:"38%", background:`linear-gradient(90deg,${sticker.color},${sticker.color}80)`, borderRadius:2, animation:"loadBar 1.1s ease-in-out infinite" }}/>
         </div>
@@ -1080,6 +1098,7 @@ export default function App() {
   const [leafletOk, setLeafletOk]     = useState(false);
   const [syncing, setSyncing]         = useState(false);
   const [pendingSession, setPendingSession] = useState(null);
+  const [authError, setAuthError]     = useState("");
   const [stickers, setStickers]       = useState(DEFAULT_STICKERS);
   const [userLocation, setUserLocation] = useState(null); // { lat, lng }
 
@@ -1112,6 +1131,25 @@ export default function App() {
 
   // ── Handle magic link redirect ────────────────────────────────────────────
   useEffect(()=>{
+    // PKCE flow: Supabase redirects with ?code=... in query string
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
+    if (code) {
+      window.history.replaceState(null, "", window.location.pathname);
+      sb.auth.exchangeCodeForSession(code).then(({ session, error }) => {
+        if (session) {
+          loadUserAfterAuth(session);
+        } else if (error?.message === "different_device") {
+          setAuthError("This link was opened on a different device. Enter your email here to get a new link on this device.");
+          setScreen(SC.AUTH);
+        } else {
+          tryRestoreSession();
+        }
+      });
+      return;
+    }
+
+    // Implicit flow: Supabase redirects with #access_token=... in hash
     const hash = window.location.hash;
     if (!hash.includes("access_token")) {
       tryRestoreSession();
@@ -1124,12 +1162,14 @@ export default function App() {
     const type         = params.get("type");
 
     if (accessToken && (type === "magiclink" || type === "signup")) {
-      // Decode JWT payload to get user id and email (no library needed)
+      // Decode JWT payload — normalize base64url to standard base64 first
       let userId = null;
       let userEmail = null;
       try {
-        const payload = JSON.parse(atob(accessToken.split(".")[1]));
-        userId    = payload.sub;   // Supabase user UUID
+        const b64 = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+        const payload = JSON.parse(atob(padded));
+        userId    = payload.sub;
         userEmail = payload.email;
       } catch {}
 
@@ -1166,8 +1206,9 @@ export default function App() {
     setSyncing(true);
     const userId = session.user?.id;
     if (!userId) {
-      // Couldn't decode user ID — fall back to auth screen
       setSyncing(false);
+      setAuthError("Sign-in link was invalid or expired. Please request a new one.");
+      setScreen(SC.AUTH);
       return;
     }
 
@@ -1285,7 +1326,7 @@ export default function App() {
       <OnlineStatus/>
       <div className="app">
         <div className="screen">
-          {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth} pendingSession={pendingSession}/>}
+          {screen===SC.AUTH        && <AuthScreen key={authError} onAuth={handleAuth} pendingSession={pendingSession} initialError={authError}/>}
           {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} stickers={stickers} finds={finds} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
           {screen===SC.FIND        && <FindSticker stickers={stickers} discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
           {screen===SC.CAM         && selectedSticker && <Camera sticker={selectedSticker} onCapture={handleCapture} onBack={()=>setScreen(SC.FIND)}/>}

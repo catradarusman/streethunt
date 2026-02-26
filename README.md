@@ -9,10 +9,10 @@ A real-world scavenger hunt PWA. Find targets hidden around the city, photograph
 | Layer | Technology |
 |---|---|
 | Frontend | React 18 + Next.js 14 (PWA) |
-| Auth | Supabase magic link (passwordless) |
+| Auth | Supabase magic link — PKCE flow (passwordless) |
 | Database | Supabase Postgres |
 | Storage | Supabase Storage (avatars + sticker images) |
-| AI Validation | Claude Vision API — `claude-opus-4-6` (server-side) |
+| Validation | Claude Vision API — `claude-opus-4-6` (server-side) |
 | Maps | Leaflet + OpenStreetMap |
 | Geolocation | Browser Geolocation API + Nominatim (reverse geocoding) |
 
@@ -110,15 +110,18 @@ Create two public buckets:
 | Bucket name | Purpose |
 |---|---|
 | `avatars` | Player avatar photos |
-| `stickers` | Sticker art and reference images for Claude validation |
+| `stickers` | Sticker art and reference images for validation |
 
 Dashboard → Storage → New bucket → set Public: ✅
 
 ### 5. Supabase: auth redirect URLs
 
-Dashboard → Auth → URL Configuration → Redirect URLs:
-- `http://localhost:3000` (local dev)
-- Your production Vercel domain
+Dashboard → Auth → URL Configuration:
+
+- **Redirect URLs:** add `http://localhost:3000` (local dev) and your production Vercel domain
+- **Auth Flow:** set to **PKCE** (default for new projects)
+
+The app uses PKCE flow. A code verifier is generated in the browser that requests the magic link and must be present when the link is clicked. If the link is opened on a **different device or browser** than where it was requested, auth fails gracefully with the message: *"This link was opened on a different device. Enter your email here to get a new link on this device."* The app also supports the implicit flow (`#access_token=` hash redirect) as a fallback.
 
 ### 6. Run locally
 
@@ -130,21 +133,92 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
+## Demo Mode
+
+Demo mode activates automatically when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON` are not set in `.env.local`. Useful for testing the full UI without a Supabase project.
+
+In demo mode:
+- No email is sent — the magic link step is simulated with a short delay
+- All Supabase reads and writes are skipped
+- GPS falls back to a demo area (Jakarta + random offset)
+- Validation still calls the real `/api/validate` endpoint — `ANTHROPIC_API_KEY` is still required
+- Profile and score are stored in `localStorage` only (cleared on sign-out)
+
+---
+
+## Session & Offline Support
+
+The app is offline-first using `localStorage` as a cache layer (`streethunt_cache_v1`).
+
+- **First sign-in:** profile is fetched from Supabase and written to localStorage
+- **Return visits:** app loads from cache instantly with no spinner, then syncs from Supabase in background
+- **Auto-login:** returning users are logged back in automatically — no new magic link needed
+- **Score protection:** if a background DB sync returns a stale or zero value, `Math.max(local, remote)` always preserves the higher score
+- **Offline indicator:** an `OnlineStatus` banner appears when the device has no network connection
+
+---
+
+## User Flow & Screens
+
+```
+AUTH
+  → enter email → "Check your email"
+  → click magic link in email
+      new user  → username + avatar setup → DASHBOARD
+      returning → DASHBOARD (auto, restored from cache or Supabase)
+
+DASHBOARD
+  → stats bar + score + leaderboard + mini map
+  → "I FOUND A MATCH" → FIND (sticker selector grid)
+      → select sticker → CAMERA
+          → capture photo → VALIDATING
+              → match   → SUCCESS MODAL (score breakdown + pioneer badge)
+              → no match → FAILED (retry tips)
+  → MAP → full-screen Leaflet map with all drop pins
+  → PROFILE → stats grid, sticker collection, sign out
+```
+
+---
+
+## Avatar System
+
+Players choose an avatar during sign-up. It cannot be changed afterwards.
+
+| Option | Description |
+|---|---|
+| 🪦 Headstone | Emoji avatar |
+| 💀 Skull | Emoji avatar |
+| 🖼️ Upload | Custom photo, uploaded to the `avatars` Supabase Storage bucket |
+
+Uploaded photos are stored at `{userId}/avatar.{ext}`. If the upload fails, the app falls back to storing a base64 preview locally.
+
+---
+
 ## Admin Panel
 
 The admin panel lets you manage stickers and upload reference images without touching the Supabase Dashboard.
 
-**Access:** `/admin` (e.g. `http://localhost:3000/admin` or `https://your-app.vercel.app/admin`)
+**Access:** `/admin` (e.g. `http://localhost:3000/admin`)
 
 **Password:** the value of your `ADMIN_SECRET` env var
 
 **What you can do:**
 - View and edit all sticker fields (name, rarity, pts, hint, color, active)
 - Upload **art images** (displayed in the sticker grid)
-- Upload **reference images** (used by Claude for photo validation)
+- Upload **reference images** (used for photo validation)
 - Add new stickers
+- Deactivate stickers (they stay in the DB but won't appear to players)
 
-> Reference images are stored in the `stickers` Supabase Storage bucket. Once uploaded via the admin panel, Claude will use them automatically for the next validation request — no redeployment needed.
+> Reference images are stored in the `stickers` Supabase Storage bucket. Once uploaded, they are used automatically for the next validation request — no redeployment needed.
+
+**Validation modes:**
+
+| Mode | How it works |
+|---|---|
+| With reference image | Validator receives both the reference image and the user's photo and checks for a conceptual match |
+| Without reference image | Falls back to name-only — validator checks if the photo plausibly shows an object matching the sticker name |
+
+Upload a reference image via the admin panel for more accurate and consistent validation.
 
 ---
 
@@ -155,34 +229,35 @@ Connect your GitHub repo to Vercel for automatic deployments:
 1. Push to GitHub → Vercel auto-builds and deploys
 2. Set all env vars from `.env.example` in Vercel Dashboard → Settings → Environment Variables
 3. Set `NEXT_PUBLIC_APP_URL` to your production Vercel domain (e.g. `https://streethunt.vercel.app`)
-4. After first deploy, update your Supabase Auth redirect URLs to include the Vercel production URL
+4. After first deploy, update your Supabase Auth redirect URLs to include the production URL
 
 ---
 
-## How AI validation works
+## How validation works
 
 ```
 User selects sticker from grid
   → Camera opens → device GPS captured via navigator.geolocation (once per session)
   → Camera captures photo
   → POST /api/validate (server-side only)
-  → Fetch reference image from Supabase Storage (stored in stickers.reference_url)
-  → Claude receives: reference image + user photo
-  → Claude checks: does the photo show the same concept/subject as the reference?
-  → Claude returns: { valid, confidence, reason }
+  → Fetch reference image from Supabase Storage (stickers.reference_url)
+  → Validator receives: reference image + user photo
+  → Checks: does the photo show the same concept/subject as the reference?
+  → Returns: { valid, confidence, reason }
   → Valid:
       → Coordinates from device GPS (fallback: demo area if permission denied)
       → City name resolved via Nominatim reverse geocoding
       → Pin drops on map at real location, points awarded
   → Invalid: retry screen with tips
-  → Fallback: if no reference image uploaded yet, Claude checks for any real-world object matching the target name
+  → Fallback: if no reference image uploaded, validator checks for any real-world
+    object matching the target name
 ```
 
-**Validation approach — concept recognition, not exact match:**
+**Concept recognition, not exact match:**
 
-Claude validates based on the *concept or subject* shown, not a pixel-perfect visual comparison. If the reference is an upward arrow, any real-world object showing an upward arrow is valid — sticker, sign, billboard, t-shirt, graffiti, etc.
+The validator checks the *concept or subject* shown, not pixel-perfect similarity. If the reference is an upward arrow, any real-world upward arrow is valid — sticker, sign, billboard, graffiti, t-shirt, etc.
 
-| What's accepted | What's rejected |
+| Accepted | Rejected |
 |---|---|
 | Different art styles (pixel, graffiti, paintbrush, minimal) | A photo of a clearly different subject |
 | Size, proportion, or orientation variations | Screenshots of the app |
@@ -190,7 +265,7 @@ Claude validates based on the *concept or subject* shown, not a pixel-perfect vi
 | Different angles, lighting, distances | Selfies with nothing relevant visible |
 | Weathering, fading, or partial visibility | |
 
-The Anthropic API key never touches the browser.
+The API key and model details never reach the browser. The in-app validation screen shows generic copy only.
 
 ---
 
@@ -222,10 +297,10 @@ The main screen shows your current score, a progress bar toward the next milesto
 
 | Bonus | Points |
 |---|---|
-| Base (by rarity) | 10 / 20 / 35 / 50 |
+| Base (by rarity) | Common 10 / Rare 20 / Epic 35 / Legendary 50 |
 | Rarity multiplier | Common +0 / Rare +5 / Epic +15 / Legendary +30 |
-| First global find | +50 |
-| Pioneer drop (first in city) | +15 |
+| First find (your first ever capture) | +50 |
+| Pioneer drop (first of that sticker in the DB) | +15 |
 
 ---
 
@@ -247,3 +322,5 @@ The main screen shows your current score, a progress bar toward the next milesto
 **iOS:** Safari → Share → "Add to Home Screen"
 
 Magic link emails on iOS: if the link opens in Safari instead of the installed PWA, tap Share → Open in Chrome (or your browser where the app is installed).
+
+> Because the app uses PKCE auth, the magic link must be opened in the **same browser** where you requested it. If it opens in a different browser, you'll be prompted to enter your email again to get a new link in the correct browser.
