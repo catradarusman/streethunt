@@ -14,6 +14,7 @@ A real-world scavenger hunt PWA. Find targets hidden around the city, photograph
 | Storage | Supabase Storage (avatars + sticker images) |
 | AI Validation | Claude Vision API — `claude-opus-4-6` (server-side) |
 | Maps | Leaflet + OpenStreetMap |
+| Geolocation | Browser Geolocation API + Nominatim (reverse geocoding) |
 
 ---
 
@@ -162,13 +163,17 @@ Connect your GitHub repo to Vercel for automatic deployments:
 
 ```
 User selects sticker from grid
+  → Camera opens → device GPS captured via navigator.geolocation (once per session)
   → Camera captures photo
   → POST /api/validate (server-side only)
   → Fetch reference image from Supabase Storage (stored in stickers.reference_url)
   → Claude receives: reference image + user photo
   → Claude checks: does the photo show the same concept/subject as the reference?
   → Claude returns: { valid, confidence, reason }
-  → Valid: pin drops on map, points awarded
+  → Valid:
+      → Coordinates from device GPS (fallback: demo area if permission denied)
+      → City name resolved via Nominatim reverse geocoding
+      → Pin drops on map at real location, points awarded
   → Invalid: retry screen with tips
   → Fallback: if no reference image uploaded yet, Claude checks for any real-world object matching the target name
 ```
@@ -189,6 +194,15 @@ The Anthropic API key never touches the browser.
 
 ---
 
+## Leaderboard
+
+- Displays the top 10 players ranked by total score, highest first
+- Sorted at both DB level (`ORDER BY total_score DESC`) and client-side as a safety net
+- **Refreshes automatically every 30 seconds** — other players' scores appear without any action from you
+- Also re-fetches 800ms after your own score changes, giving the DB write time to commit before the read fires
+
+---
+
 ## Scoring
 
 | Bonus | Points |
@@ -197,6 +211,18 @@ The Anthropic API key never touches the browser.
 | Rarity multiplier | Common +0 / Rare +5 / Epic +15 / Legendary +30 |
 | First global find | +50 |
 | Pioneer drop (first in city) | +15 |
+
+---
+
+## Map & Location
+
+- When the camera opens, the app requests device GPS via `navigator.geolocation` — **the browser permission prompt appears only once per session**
+- GPS is captured once and reused for all subsequent submissions in the same session
+- If permission is denied or GPS is unavailable, the app silently falls back to a demo area
+- After a successful submission, the city name is resolved from the coordinates via **Nominatim** (OpenStreetMap reverse geocoding)
+  - Free service, no API key required
+  - Falls back to `"Unknown"` if the request fails
+  - Nominatim's usage policy allows low-frequency requests; one call per submission is well within limits
 
 ---
 
