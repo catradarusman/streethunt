@@ -630,6 +630,7 @@ function AuthScreen({ onAuth, pendingSession }) {
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMap, onProfile }) {
   const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
+  const didMountLb = useRef(false);
 
   // Load real leaderboard from DB
   const fetchLb = () => {
@@ -640,7 +641,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
       .then(rows=>{
         if (!rows?.length) return;
         const sorted = [...rows].sort((a,b)=>b.total_score-a.total_score);
-        setLb(sorted.map(r=>({ tag:r.username, pts:r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
+        setLb(sorted.map(r=>({ tag:r.username, pts:r.username===user.username?Math.max(r.total_score,totalScore):r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
       })
       .catch(()=>{});
   };
@@ -654,6 +655,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
 
   // Re-fetch after own score change, delayed 800ms to let saveUserToDB commit first
   useEffect(()=>{
+    if (!didMountLb.current) { didMountLb.current = true; return; }
     const timer = setTimeout(fetchLb, 800);
     return ()=>clearTimeout(timer);
   },[totalScore]);
@@ -1175,7 +1177,7 @@ export default function App() {
       const profile = { ...dbUser, userId };
       writeCache({ ...profile, ownDrops });
       setUser(profile);
-      setTotalScore(dbUser.total_score||0);
+      setTotalScore(t => Math.max(t, dbUser.total_score||0));
       setDiscovered(dbUser.discovered||[]);
       setDrops([...SEED_DROPS,...ownDrops]);
       setFinds(dbUser.finds||0);
@@ -1196,7 +1198,7 @@ export default function App() {
     const ownDrops = await loadDropsFromDB(userId);
     writeCache({ userId, ...dbUser, ownDrops });
     setUser(u => ({ ...u, ...dbUser }));
-    setTotalScore(dbUser.total_score||0);
+    setTotalScore(t => Math.max(t, dbUser.total_score||0));
     setDiscovered(dbUser.discovered||[]);
     setDrops([...SEED_DROPS,...ownDrops.map(d=>({...d,isOwn:true}))]);
     setFinds(dbUser.finds||0);
