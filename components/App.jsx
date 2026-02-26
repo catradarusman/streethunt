@@ -427,7 +427,13 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
     }
     const { error: err } = await sb.auth.signInWithOtp(email);
     setLoading(false);
-    if (err) { setError("Couldn't send link. Check your email."); return; }
+    if (err) {
+      console.error("OTP error:", err);
+      const msg = err.msg || err.message || "";
+      const isRateLimit = err.code === 429 || /rate.limit/i.test(msg);
+      setError(isRateLimit ? "Too many attempts. Please wait a few minutes and try again." : "Couldn't send link. Check your email.");
+      return;
+    }
     setStage("sent");
   };
 
