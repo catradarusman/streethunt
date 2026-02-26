@@ -92,6 +92,7 @@ create table stickers (
 -- Row Level Security
 alter table users enable row level security;
 alter table drops enable row level security;
+alter table stickers enable row level security;
 
 create policy "Users can read all profiles" on users for select using (true);
 create policy "Users can update own profile" on users for update using (auth.uid()::text = user_id);
@@ -123,7 +124,19 @@ Dashboard → Auth → URL Configuration:
 
 The app uses PKCE flow. A code verifier is generated in the browser that requests the magic link and must be present when the link is clicked. If the link is opened on a **different device or browser** than where it was requested, auth fails gracefully with the message: *"This link was opened on a different device. Enter your email here to get a new link on this device."* The app also supports the implicit flow (`#access_token=` hash redirect) as a fallback.
 
-### 6. Run locally
+### 6. Supabase: email provider (Resend)
+
+Supabase's built-in email quota is very low and unsuitable for production. Configure a custom SMTP provider via [Resend](https://resend.com):
+
+1. Create a Resend account and add your sending domain (e.g. `yourdomain.com`)
+2. Resend will show the DNS records you need to add (DKIM TXT + SPF TXT) — add them at your DNS provider (Cloudflare, Namecheap, etc.)
+3. Click **Verify DNS Records** in Resend → wait for status to become **Verified** (DNS propagation can take up to 48 hours)
+4. In Resend → API Keys, create a key and note your `from` address (e.g. `noreply@yourdomain.com`)
+5. In Supabase Dashboard → Authentication → SMTP Settings → enable Custom SMTP and enter your Resend credentials
+
+> If the domain is not yet **Verified** in Resend, magic link emails will fail with a `403` error: *"The domain is not verified."* No emails will be sent until DNS verification completes.
+
+### 7. Run locally
 
 ```bash
 npm run dev
@@ -290,6 +303,7 @@ The main screen shows your current score, a progress bar toward the next milesto
 - **Refreshes automatically every 30 seconds** — other players' scores appear without any action from you
 - Re-fetches 800ms after your own score changes, giving the DB write time to commit before the read fires
 - **Score is anti-regression protected** — if a DB sync returns a stale or zero value, the local score is always preserved (`Math.max` between local state and DB value)
+- Leaderboard reads are sent with the user's Bearer token so the `users` table RLS SELECT policy is satisfied — a missing token causes the query to return no rows and the leaderboard will show only the current user
 
 ---
 
@@ -324,3 +338,5 @@ The main screen shows your current score, a progress bar toward the next milesto
 Magic link emails on iOS: if the link opens in Safari instead of the installed PWA, tap Share → Open in Chrome (or your browser where the app is installed).
 
 > Because the app uses PKCE auth, the magic link must be opened in the **same browser** where you requested it. If it opens in a different browser, you'll be prompted to enter your email again to get a new link in the correct browser.
+
+> If the sign-in screen shows **"Too many attempts. Please wait a few minutes and try again."** — Supabase has rate-limited OTP requests for that email address. Wait ~5 minutes before requesting another magic link.

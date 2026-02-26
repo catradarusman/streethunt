@@ -659,8 +659,9 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
   // Load real leaderboard from DB
   const fetchLb = () => {
     if (IS_DEMO) return;
+    const session = sb.auth.getSession();
     fetch(`${SUPABASE_URL}/rest/v1/users?select=username,total_score,avatar_id&order=total_score.desc&limit=10`,
-      { headers:{ "apikey":SUPABASE_ANON } })
+      { headers:{ "apikey":SUPABASE_ANON, ...(session?.access_token ? { "Authorization":`Bearer ${session.access_token}` } : {}) } })
       .then(r=>r.json())
       .then(rows=>{
         if (!rows?.length) return;
