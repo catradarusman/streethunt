@@ -632,16 +632,30 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
   const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
 
   // Load real leaderboard from DB
-  useEffect(()=>{
+  const fetchLb = () => {
     if (IS_DEMO) return;
     fetch(`${SUPABASE_URL}/rest/v1/users?select=username,total_score,avatar_id&order=total_score.desc&limit=10`,
       { headers:{ "apikey":SUPABASE_ANON } })
       .then(r=>r.json())
       .then(rows=>{
         if (!rows?.length) return;
-        setLb(rows.map(r=>({ tag:r.username, pts:r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
+        const sorted = [...rows].sort((a,b)=>b.total_score-a.total_score);
+        setLb(sorted.map(r=>({ tag:r.username, pts:r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
       })
       .catch(()=>{});
+  };
+
+  // Poll every 30s so other users' scores appear without user action
+  useEffect(()=>{
+    fetchLb();
+    const id = setInterval(fetchLb, 30000);
+    return ()=>clearInterval(id);
+  },[]);
+
+  // Re-fetch after own score change, delayed 800ms to let saveUserToDB commit first
+  useEffect(()=>{
+    const timer = setTimeout(fetchLb, 800);
+    return ()=>clearTimeout(timer);
   },[totalScore]);
   const rank = lb.findIndex(e=>e.own)+1;
 
@@ -1064,6 +1078,7 @@ export default function App() {
   const [syncing, setSyncing]         = useState(false);
   const [pendingSession, setPendingSession] = useState(null);
   const [stickers, setStickers]       = useState(DEFAULT_STICKERS);
+  const [userLocation, setUserLocation] = useState(null); // { lat, lng }
 
   // ── Load stickers from DB on mount ───────────────────────────────────────
   useEffect(()=>{
@@ -1072,6 +1087,18 @@ export default function App() {
       setStickers(rows);
     });
   },[]);
+
+  // ── Capture device GPS when camera opens ─────────────────────────────────
+  useEffect(()=>{
+    if(screen!==SC.CAM)return;
+    if(!navigator.geolocation)return;
+    if(userLocation)return;
+    navigator.geolocation.getCurrentPosition(
+      (pos)=>setUserLocation({lat:pos.coords.latitude,lng:pos.coords.longitude}),
+      ()=>{},
+      {enableHighAccuracy:true,timeout:10000}
+    );
+  },[screen]);
 
   // ── Load Leaflet ──────────────────────────────────────────────────────────
   useEffect(()=>{
@@ -1199,12 +1226,19 @@ export default function App() {
         const isFirst   = finds === 0;
         const isPioneer = !drops.some(d=>d.stickerId===selected&&!d.isOwn);
         const { total, breakdown } = calcScore(selectedSticker, isFirst, isPioneer);
+        const lat = userLocation?.lat ?? -6.2088+(Math.random()-0.5)*0.06;
+        const lng = userLocation?.lng ?? 106.8456+(Math.random()-0.5)*0.06;
+        let city = "Unknown";
+        try {
+          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+          const geoData = await geo.json();
+          city = geoData.address?.city || geoData.address?.town || geoData.address?.county || "Unknown";
+        } catch {}
         const newDrop = {
           id:`own-${Date.now()}`,
-          lat:-6.2088+(Math.random()-0.5)*0.06,
-          lng:106.8456+(Math.random()-0.5)*0.06,
+          lat, lng,
           stickerId:selected, owner:user.username,
-          city:"Jakarta, ID", time:"just now",
+          city, time:"just now",
           pts:total, pioneer:isPioneer, isOwn:true,
         };
         setTotalScore(t=>t+total);
