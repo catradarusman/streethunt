@@ -194,12 +194,27 @@ The Anthropic API key never touches the browser.
 
 ---
 
+## Dashboard
+
+The main screen shows your current score, a progress bar toward the next milestone, and three inline stats:
+
+| Badge | Meaning |
+|---|---|
+| 💀 N found | Unique sticker types you've discovered |
+| 🏆 #N | Your current leaderboard rank |
+| 📸 N | Total validated captures (all-time) |
+
+📸 increments on every successful validation and is persisted to cache and Supabase alongside your score.
+
+---
+
 ## Leaderboard
 
 - Displays the top 10 players ranked by total score, highest first
 - Sorted at both DB level (`ORDER BY total_score DESC`) and client-side as a safety net
 - **Refreshes automatically every 30 seconds** — other players' scores appear without any action from you
-- Also re-fetches 800ms after your own score changes, giving the DB write time to commit before the read fires
+- Re-fetches 800ms after your own score changes, giving the DB write time to commit before the read fires
+- **Score is anti-regression protected** — if a DB sync returns a stale or zero value, the local score is always preserved (`Math.max` between local state and DB value)
 
 ---
 
