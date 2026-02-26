@@ -628,7 +628,7 @@ function AuthScreen({ onAuth, pendingSession }) {
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
-function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMap, onProfile }) {
+function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHunt, onMap, onProfile }) {
   const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
   const didMountLb = useRef(false);
 
@@ -690,6 +690,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, onHunt, onMa
             <div style={{ display:"flex", gap:14, marginTop:8 }}>
               <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#8B5CF6" }}>💀 {discovered.length} found</span>
               <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#FFD700" }}>🏆 #{rank}</span>
+              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff60" }}>📸 {finds}</span>
             </div>
           </div>
           <div style={{ animation:"float 3s ease-in-out infinite" }}>
@@ -1285,7 +1286,7 @@ export default function App() {
       <div className="app">
         <div className="screen">
           {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth} pendingSession={pendingSession}/>}
-          {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} stickers={stickers} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
+          {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} stickers={stickers} finds={finds} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
           {screen===SC.FIND        && <FindSticker stickers={stickers} discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
           {screen===SC.CAM         && selectedSticker && <Camera sticker={selectedSticker} onCapture={handleCapture} onBack={()=>setScreen(SC.FIND)}/>}
           {screen===SC.VALIDATING  && selectedSticker && <Validating sticker={selectedSticker}/>}
