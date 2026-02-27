@@ -15,7 +15,7 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON;
 async function getStickerFromDB(stickerId) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/stickers?id=eq.${stickerId}&select=id,name,reference_url,active`,
+      `${SUPABASE_URL}/rest/v1/stickers?id=eq.${encodeURIComponent(stickerId)}&select=id,name,reference_url,active`,
       { headers: { "apikey": SUPABASE_ANON, "Content-Type": "application/json" } }
     );
     const data = await res.json();
@@ -34,6 +34,18 @@ export const config = {
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Require a valid Supabase session token to prevent unauthenticated API abuse
+  const token = (req.headers["authorization"] || "").replace("Bearer ", "").trim();
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${token}` },
+  }).catch(() => null);
+  if (!authCheck || !authCheck.ok) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const { userPhotoBase64, referenceId, stickerName } = req.body;

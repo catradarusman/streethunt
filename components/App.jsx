@@ -247,9 +247,13 @@ async function validateSticker(userPhotoBase64, sticker) {
   }
 
   // Production — hits /api/validate, Anthropic key stays server-side
+  const session = sb.auth.getSession();
   const res = await fetch("/api/validate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+    },
     body: JSON.stringify({
       userPhotoBase64,
       referenceId: sticker.id,
@@ -269,7 +273,7 @@ async function syncUserFromDB(userId) {
   if (IS_DEMO) return null;
   try {
     const t = await sb.from("users");
-    const { data } = await t.select("*", `user_id=eq.${userId}`);
+    const { data } = await t.select("*", `user_id=eq.${encodeURIComponent(userId)}`);
     return data?.[0] || null;
   } catch { return null; }
 }
@@ -294,13 +298,44 @@ async function loadDropsFromDB(userId) {
   if (IS_DEMO) return [];
   try {
     const t = await sb.from("drops");
-    const { data } = await t.select("*", `user_id=eq.${userId}&order=created_at.desc`);
+    const { data } = await t.select("*", `user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`);
     return (data||[]).map(d => ({
       id: d.id, lat: d.lat, lng: d.lng, stickerId: d.sticker_id,
       owner: d.username || "you", city: d.city, time: "synced",
       pts: d.pts, pioneer: d.pioneer, isOwn: true,
     }));
   } catch { return []; }
+}
+
+// Returns true if no one (including the current user) has a drop for this sticker yet
+async function checkStickerPioneer(stickerId) {
+  if (IS_DEMO) return true;
+  try {
+    const session = sb.auth.getSession();
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/drops?sticker_id=eq.${encodeURIComponent(stickerId)}&select=id&limit=1`,
+      { headers: { "apikey": SUPABASE_ANON, ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}) } }
+    );
+    const data = await res.json();
+    return !data || data.length === 0;
+  } catch { return false; }
+}
+
+// Returns the total number of drops across all users
+async function fetchGlobalDropCount() {
+  if (IS_DEMO) return 0;
+  try {
+    const session = sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/drops?select=id`, {
+      headers: {
+        "apikey": SUPABASE_ANON,
+        "Prefer": "count=exact",
+        ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+      },
+    });
+    const count = parseInt(res.headers.get("content-range")?.split("/")[1] || "0", 10);
+    return isNaN(count) ? 0 : count;
+  } catch { return 0; }
 }
 
 // ─── CSS ───────────────────────────────────────────────────────────────────
@@ -415,6 +450,8 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState(initialError);
+
+  useEffect(()=>{ if (initialError) setError(initialError); }, [initialError]);
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -654,6 +691,7 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHunt, onMap, onProfile }) {
   const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
+  const [globalDropCount, setGlobalDropCount] = useState(drops.length);
   const didMountLb = useRef(false);
 
   // Load real leaderboard from DB
@@ -665,8 +703,12 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
       .then(r=>r.json())
       .then(rows=>{
         if (!rows?.length) return;
-        const sorted = [...rows].sort((a,b)=>b.total_score-a.total_score);
-        setLb(sorted.map(r=>({ tag:r.username, pts:r.username===user.username?Math.max(r.total_score,totalScore):r.total_score, avatarId:r.avatar_id, own:r.username===user.username })));
+        const mapped = rows.map(r=>({ tag:r.username, pts:r.username===user.username?Math.max(r.total_score,totalScore):r.total_score, avatarId:r.avatar_id, own:r.username===user.username }));
+        if (!mapped.some(e=>e.own)) {
+          mapped.push({ separator:true, tag:null, pts:null, avatarId:null, own:false });
+          mapped.push({ tag:user.username, pts:Math.max(totalScore,0), avatarId:user.avatar_id, own:true });
+        }
+        setLb(mapped);
       })
       .catch(()=>{});
   };
@@ -674,7 +716,8 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
   // Poll every 30s so other users' scores appear without user action
   useEffect(()=>{
     fetchLb();
-    const id = setInterval(fetchLb, 30000);
+    fetchGlobalDropCount().then(n=>{ if(n>0) setGlobalDropCount(n); });
+    const id = setInterval(()=>{ if (!document.hidden) fetchLb(); }, 10000);
     return ()=>clearInterval(id);
   },[]);
 
@@ -684,7 +727,8 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
     const timer = setTimeout(fetchLb, 800);
     return ()=>clearTimeout(timer);
   },[totalScore]);
-  const rank = lb.findIndex(e=>e.own)+1;
+  const rankIdx = lb.findIndex(e=>e.own);
+  const rank = rankIdx >= 0 ? rankIdx + 1 : null;
 
   return (
     <div style={{ minHeight:"100dvh", background:"#0A0A0A" }}>
@@ -714,7 +758,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
             </div>
             <div style={{ display:"flex", gap:14, marginTop:8 }}>
               <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#8B5CF6" }}>💀 {discovered.length} found</span>
-              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#FFD700" }}>🏆 #{rank}</span>
+              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#FFD700" }}>🏆 #{rank ?? "—"}</span>
               <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff60" }}>📸 {finds}</span>
             </div>
           </div>
@@ -728,14 +772,19 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
       <div style={{ padding:"0 20px 16px" }}>
         <div onClick={onMap} style={{ height:130, borderRadius:16, overflow:"hidden", border:"1px solid #2A2A2A", cursor:"pointer", position:"relative", background:"#0d1520" }}>
           <svg width="100%" height="100%" style={{ position:"absolute", inset:0 }}><rect width="100%" height="100%" fill="#0d1520"/><path d="M0 65 Q130 45 280 70 Q360 82 500 65" stroke="#ffffff08" strokeWidth="6" fill="none"/><ellipse cx="300" cy="90" rx="55" ry="30" fill="#1a2a40" opacity="0.5"/></svg>
-          {SEED_DROPS.slice(0,5).map((d,i) => {
+          {drops.length === 0 && (
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"rgba(255,255,255,0.18)" }}>No drops yet</span>
+            </div>
+          )}
+          {drops.slice(0,5).map((d,i) => {
             const st=STICKERS.find(s=>s.id===d.stickerId);
             return <div key={d.id} style={{ position:"absolute", left:`${14+i*16}%`, top:`${28+[0,20,-8,14,-4][i]}%`, transform:"translate(-50%,-100%)", animation:`float ${1.9+i*0.22}s ease-in-out infinite`, animationDelay:`${i*0.12}s` }}>
               <svg width="13" height="17" viewBox="0 0 13 17"><path d="M6.5 0C2.9 0 0 2.9 0 6.5C0 11.4 6.5 17 6.5 17S13 11.4 13 6.5C13 2.9 10.1 0 6.5 0Z" fill={st?.color||"#8B5CF6"}/><circle cx="6.5" cy="6.5" r="2.8" fill="#0A0A0A"/></svg>
             </div>;
           })}
           <div style={{ position:"absolute", top:8, right:10, background:"rgba(10,10,10,0.85)", borderRadius:8, padding:"3px 9px", fontFamily:"'Space Mono',monospace", fontSize:9, color:"#fff" }}>↗ Expand</div>
-          <div style={{ position:"absolute", bottom:8, left:10, fontFamily:"'Space Mono',monospace", fontSize:9, color:"rgba(255,255,255,0.3)" }}>{drops.length} pins worldwide</div>
+          <div style={{ position:"absolute", bottom:8, left:10, fontFamily:"'Space Mono',monospace", fontSize:9, color:"rgba(255,255,255,0.3)" }}>{globalDropCount} pins worldwide</div>
         </div>
       </div>
 
@@ -757,8 +806,10 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
             <span style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:"#ffffff30" }}>ALL TIME</span>
           </div>
           {lb.map((e,i) => {
-            return <div key={i} style={{ padding:"10px 20px", borderBottom:"1px solid #ffffff04", display:"flex", alignItems:"center", gap:12, background:e.own?"rgba(198,255,0,0.04)":"transparent" }}>
-              <span style={{ fontFamily:"'Space Mono',monospace", color:i<3?"#C6FF00":"#ffffff18", fontSize:11, width:16 }}>{i+1}</span>
+            if (e.separator) return <div key="sep" style={{ padding:"6px 20px", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:"#ffffff18", letterSpacing:4 }}>···</span></div>;
+            const topRank = lb.slice(0,i).filter(x=>!x.separator).length + 1;
+            return <div key={e.tag} style={{ padding:"10px 20px", borderBottom:"1px solid #ffffff04", display:"flex", alignItems:"center", gap:12, background:e.own?"rgba(198,255,0,0.04)":"transparent" }}>
+              <span style={{ fontFamily:"'Space Mono',monospace", color:topRank<=3?"#C6FF00":"#ffffff18", fontSize:11, width:16 }}>{e.own&&rank===null?"—":topRank}</span>
               <div style={{ width:28, height:28, borderRadius:8, background:"#141414", display:"flex", alignItems:"center", justifyContent:"center", border:e.own?"1px solid rgba(198,255,0,0.3)":"1px solid #1e1e1e", flexShrink:0, overflow:"hidden" }}>
                 <AvatarDisplay avatarId={e.avatarId} size={22}/>
               </div>
@@ -833,10 +884,11 @@ function Camera({ sticker, onCapture, onBack }) {
   const videoRef=useRef(null); const canvasRef=useRef(null); const streamRef=useRef(null);
   const [streaming,setStreaming]=useState(false); const [capturing,setCapturing]=useState(false); const [camErr,setCamErr]=useState(false);
   useEffect(()=>{
+    let active=true;
     (async()=>{
-      try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});streamRef.current=s;if(videoRef.current){videoRef.current.srcObject=s;videoRef.current.play();setStreaming(true);}}catch{setCamErr(true);}
+      try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});if(!active){s.getTracks().forEach(t=>t.stop());return;}streamRef.current=s;if(videoRef.current){videoRef.current.srcObject=s;videoRef.current.play();setStreaming(true);}}catch{if(active)setCamErr(true);}
     })();
-    return()=>streamRef.current?.getTracks().forEach(t=>t.stop());
+    return()=>{active=false;streamRef.current?.getTracks().forEach(t=>t.stop());};
   },[]);
   const capture=()=>{
     setCapturing(true);let b64=null;
@@ -1275,7 +1327,7 @@ export default function App() {
       const res = await validateSticker(b64, selectedSticker);
       if (res.valid) {
         const isFirst   = finds === 0;
-        const isPioneer = !drops.some(d=>d.stickerId===selected&&!d.isOwn);
+        const isPioneer = await checkStickerPioneer(selected);
         const { total, breakdown } = calcScore(selectedSticker, isFirst, isPioneer);
         const lat = userLocation?.lat ?? -6.2088+(Math.random()-0.5)*0.06;
         const lng = userLocation?.lng ?? 106.8456+(Math.random()-0.5)*0.06;
@@ -1333,7 +1385,7 @@ export default function App() {
       <OnlineStatus/>
       <div className="app">
         <div className="screen">
-          {screen===SC.AUTH        && <AuthScreen key={authError} onAuth={handleAuth} pendingSession={pendingSession} initialError={authError}/>}
+          {screen===SC.AUTH        && <AuthScreen onAuth={handleAuth} pendingSession={pendingSession} initialError={authError}/>}
           {screen===SC.DASH        && user && <Dashboard user={user} totalScore={totalScore} drops={drops} discovered={discovered} stickers={stickers} finds={finds} onHunt={()=>{setSelected(null);setScreen(SC.FIND);}} onMap={()=>setScreen(SC.MAP)} onProfile={()=>setScreen(SC.PROFILE)}/>}
           {screen===SC.FIND        && <FindSticker stickers={stickers} discovered={discovered} onSelect={id=>{setSelected(id);setScreen(SC.CAM);}} onBack={()=>setScreen(SC.DASH)}/>}
           {screen===SC.CAM         && selectedSticker && <Camera sticker={selectedSticker} onCapture={handleCapture} onBack={()=>setScreen(SC.FIND)}/>}

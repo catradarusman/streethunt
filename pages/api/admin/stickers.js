@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     const { id, ...fields } = req.body;
     if (!id) return res.status(400).json({ error: "Missing id" });
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/stickers?id=eq.${id}`,
+      `${SUPABASE_URL}/rest/v1/stickers?id=eq.${encodeURIComponent(id)}`,
       {
         method: "PATCH",
         headers: supabaseHeaders(),
