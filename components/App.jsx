@@ -283,7 +283,7 @@ async function saveUserToDB(userId, profile) {
   try {
     const t = await sb.from("users");
     await t.upsert({ user_id: userId, ...profile, updated_at: new Date().toISOString() });
-  } catch {}
+  } catch (e) { console.error("saveUserToDB failed:", e); }
 }
 
 async function saveDropToDB(userId, drop) {
@@ -291,7 +291,7 @@ async function saveDropToDB(userId, drop) {
   try {
     const t = await sb.from("drops");
     await t.insert({ user_id: userId, sticker_id: drop.stickerId, lat: drop.lat, lng: drop.lng, city: drop.city, pts: drop.pts, pioneer: drop.pioneer });
-  } catch {}
+  } catch (e) { console.error("saveDropToDB failed:", e); }
 }
 
 async function loadDropsFromDB(userId) {
@@ -1275,13 +1275,21 @@ export default function App() {
     if (dbUser) {
       // Returning user — restore full profile
       const ownDrops = await loadDropsFromDB(userId);
+      const dropsScore      = ownDrops.reduce((sum, d) => sum + (d.pts || 0), 0);
+      const dropsDiscovered = [...new Set(ownDrops.map(d => d.stickerId))];
+      const dropsFinds      = ownDrops.length;
+      const finalScore      = Math.max(dbUser.total_score || 0, dropsScore);
+      const finalDiscovered = [...new Set([...(dbUser.discovered || []), ...dropsDiscovered])];
+      const finalFinds      = Math.max(dbUser.finds || 0, dropsFinds);
+      if (finalScore > (dbUser.total_score||0) || finalFinds > (dbUser.finds||0) || finalDiscovered.length > (dbUser.discovered||[]).length)
+        saveUserToDB(userId, { total_score:finalScore, discovered:finalDiscovered, finds:finalFinds });
       const profile = { ...dbUser, userId };
       writeCache({ ...profile, ownDrops });
       setUser(profile);
-      setTotalScore(t => Math.max(t, dbUser.total_score||0));
-      setDiscovered(dbUser.discovered||[]);
+      setTotalScore(t => Math.max(t, finalScore));
+      setDiscovered(finalDiscovered);
       setDrops([...SEED_DROPS,...ownDrops]);
-      setFinds(dbUser.finds||0);
+      setFinds(finalFinds);
       setSyncing(false);
       setScreen(SC.DASH);
     } else {
@@ -1297,12 +1305,20 @@ export default function App() {
     const dbUser = await syncUserFromDB(userId);
     if (!dbUser) return;
     const ownDrops = await loadDropsFromDB(userId);
+    const dropsScore      = ownDrops.reduce((sum, d) => sum + (d.pts || 0), 0);
+    const dropsDiscovered = [...new Set(ownDrops.map(d => d.stickerId))];
+    const dropsFinds      = ownDrops.length;
+    const finalScore      = Math.max(dbUser.total_score || 0, dropsScore);
+    const finalDiscovered = [...new Set([...(dbUser.discovered || []), ...dropsDiscovered])];
+    const finalFinds      = Math.max(dbUser.finds || 0, dropsFinds);
+    if (finalScore > (dbUser.total_score||0) || finalFinds > (dbUser.finds||0) || finalDiscovered.length > (dbUser.discovered||[]).length)
+      saveUserToDB(userId, { total_score:finalScore, discovered:finalDiscovered, finds:finalFinds });
     writeCache({ userId, ...dbUser, ownDrops });
     setUser(u => ({ ...u, ...dbUser }));
-    setTotalScore(t => Math.max(t, dbUser.total_score||0));
-    setDiscovered(dbUser.discovered||[]);
+    setTotalScore(t => Math.max(t, finalScore));
+    setDiscovered(finalDiscovered);
     setDrops([...SEED_DROPS,...ownDrops.map(d=>({...d,isOwn:true}))]);
-    setFinds(dbUser.finds||0);
+    setFinds(finalFinds);
   };
 
   // ── Persist to cache + Supabase on every change ───────────────────────────
