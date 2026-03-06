@@ -1,9 +1,10 @@
 {
   "accountAssociation": {
-    "header": "TODO: generate via Warpcast Developer Tools",
-    "payload": "TODO: generate via Warpcast Developer Tools",
-    "signature": "TODO: generate via Warpcast Developer Tools"
-  },
+    "header": "eyJmaWQiOjkzMTgsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgwMzZjRDA2NEQwNjhFQjFkOTlFMDdkNzk4NDhjN0E0QWFiOTRCZDQ5In0",
+    "payload": "eyJkb21haW4iOiJzdHJlZXRodW50LnZlcmNlbC5hcHAifQ",
+    "signature": "WllFoBNI3nU+EOCslz3PFH0A9f10XAZak1mGmyGCP0lrUs2suahG52MB2xG4zb+Xa2Qhpa2eBzN+pTofr9+5Fxw="
+  }
+},
   "miniapp": {
     "version": "1",
     "name": "StreetHunt",
