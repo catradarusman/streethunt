@@ -397,3 +397,6 @@ Magic link emails on iOS: if the link opens in Safari instead of the installed P
 - **Bug fix: GPS fallback** — in production, capture is now blocked if GPS is unavailable instead of silently recording a fake location; demo mode retains the Jakarta placeholder for testing
 - **Bug fix: leaderboard stale response** — `fetchLb` now aborts in-flight requests via `AbortController` before starting a new one
 - **Dependency: Next.js 14.2.5 → 14.2.35** — patches 1 critical + 12 high CVEs (cache poisoning, auth bypass, SSRF)
+- **Bug fix: leaderboard stale score** — `totalScore` in the 10-second interval was always stale (captured as 0 at mount); now reads from a `useRef` that tracks the latest value, ensuring `Math.max(DB, local)` uses the correct score
+- **Bug fix: error boundary** — added `ErrorBoundary` class component wrapping the app; any React crash now shows a "SOMETHING BROKE / RELOAD" screen instead of a blank white page
+- **PWA icons** — generated `icon-192.png` and `icon-512.png` matching the app visual identity; fixes broken "Add to Home Screen" icon

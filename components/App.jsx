@@ -703,22 +703,25 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
   const [globalDropCount, setGlobalDropCount] = useState(drops.length);
   const didMountLb = useRef(false);
   const lbController = useRef(null);
+  const totalScoreRef = useRef(totalScore);
+  useEffect(()=>{ totalScoreRef.current = totalScore; },[totalScore]);
 
   // Load real leaderboard from DB
   const fetchLb = () => {
     if (IS_DEMO) return;
     if (lbController.current) lbController.current.abort();
     lbController.current = new AbortController();
+    const score = totalScoreRef.current;
     const session = sb.auth.getSession();
     fetch(`${SUPABASE_URL}/rest/v1/users?select=username,total_score,avatar_id&order=total_score.desc&limit=10`,
       { signal: lbController.current.signal, headers:{ "apikey":SUPABASE_ANON, ...(session?.access_token ? { "Authorization":`Bearer ${session.access_token}` } : {}) } })
       .then(r=>r.json())
       .then(rows=>{
         if (!rows?.length) return;
-        const mapped = rows.map(r=>({ tag:r.username, pts:r.username===user.username?Math.max(r.total_score,totalScore):r.total_score, avatarId:r.avatar_id, own:r.username===user.username }));
+        const mapped = rows.map(r=>({ tag:r.username, pts:r.username===user.username?Math.max(r.total_score,score):r.total_score, avatarId:r.avatar_id, own:r.username===user.username }));
         if (!mapped.some(e=>e.own)) {
           mapped.push({ separator:true, tag:null, pts:null, avatarId:null, own:false });
-          mapped.push({ tag:user.username, pts:Math.max(totalScore,0), avatarId:user.avatar_id, own:true });
+          mapped.push({ tag:user.username, pts:Math.max(score,0), avatarId:user.avatar_id, own:true });
         }
         setLb(mapped);
       })

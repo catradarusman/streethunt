@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import Head from "next/head";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 // Dynamic import with ssr:false — required for PWA (uses window, navigator, localStorage)
 const App = dynamic(() => import("../components/App"), { ssr: false });
@@ -19,7 +20,9 @@ export default function Home() {
         <link rel="manifest" href="/manifest.json"/>
         <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
       </Head>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </>
   );
 }
