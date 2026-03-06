@@ -11,6 +11,18 @@ const client = new Anthropic({
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON;
 
+// Per-user rate limit: max 10 calls per 60 seconds
+const rateLimitMap = new Map();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_CALLS = 10;
+function isRateLimited(userId) {
+  const now = Date.now();
+  const calls = (rateLimitMap.get(userId) || []).filter(t => now - t < RATE_WINDOW_MS);
+  if (calls.length >= RATE_MAX_CALLS) return true;
+  rateLimitMap.set(userId, [...calls, now]);
+  return false;
+}
+
 // Fetch sticker config from Supabase DB
 async function getStickerFromDB(stickerId) {
   try {
@@ -46,6 +58,12 @@ export default async function handler(req, res) {
   }).catch(() => null);
   if (!authCheck || !authCheck.ok) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+  const authUser = await authCheck.json().catch(() => null);
+  const userId = authUser?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (isRateLimited(userId)) {
+    return res.status(429).json({ valid: false, confidence: 0, reason: "Too many requests. Please wait a moment." });
   }
 
   const { userPhotoBase64, referenceId, stickerName } = req.body;

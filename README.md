@@ -8,7 +8,7 @@ A real-world scavenger hunt PWA. Find targets hidden around the city, photograph
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18 + Next.js 14 (PWA) |
+| Frontend | React 18 + Next.js 14.2.35 (PWA) |
 | Auth | Supabase magic link — PKCE flow (passwordless) |
 | Database | Supabase Postgres |
 | Storage | Supabase Storage (avatars + sticker images) |
@@ -258,7 +258,7 @@ User selects sticker from grid
   → Checks: does the photo show the same concept/subject as the reference?
   → Returns: { valid, confidence, reason }
   → Valid:
-      → Coordinates from device GPS (fallback: demo area if permission denied)
+      → Coordinates from device GPS (required; capture is blocked if GPS unavailable)
       → City name resolved via Nominatim reverse geocoding
       → Pin drops on map at real location, points awarded
   → Invalid: retry screen with tips
@@ -300,8 +300,9 @@ The main screen shows your current score, a progress bar toward the next milesto
 
 - Displays the top 10 players ranked by total score, highest first
 - Sorted at both DB level (`ORDER BY total_score DESC`) and client-side as a safety net
-- **Refreshes automatically every 30 seconds** — other players' scores appear without any action from you
+- **Refreshes automatically every 10 seconds** — other players' scores appear without any action from you
 - Re-fetches 800ms after your own score changes, giving the DB write time to commit before the read fires
+- Each fetch aborts any in-flight request before starting a new one (prevents stale responses overwriting fresh data)
 - **Score is anti-regression protected** — if a DB sync returns a stale or zero value, the local score is always preserved (`Math.max` between local state and DB value)
 - Leaderboard reads are sent with the user's Bearer token so the `users` table RLS SELECT policy is satisfied — a missing token causes the query to return no rows and the leaderboard will show only the current user
 
@@ -322,7 +323,8 @@ The main screen shows your current score, a progress bar toward the next milesto
 
 - When the camera opens, the app requests device GPS via `navigator.geolocation` — **the browser permission prompt appears only once per session**
 - GPS is captured once and reused for all subsequent submissions in the same session
-- If permission is denied or GPS is unavailable, the app silently falls back to a demo area
+- If permission is denied or GPS is unavailable, capture is blocked with an error: *"Location unavailable. Enable GPS and try again."* — drops are never recorded with a fake location
+- In demo mode (Supabase not configured), GPS denial falls back to a demo area (Jakarta + random offset) so the full flow can still be tested
 - After a successful submission, the city name is resolved from the coordinates via **Nominatim** (OpenStreetMap reverse geocoding)
   - Free service, no API key required
   - Falls back to `"Unknown"` if the request fails
@@ -340,3 +342,33 @@ Magic link emails on iOS: if the link opens in Safari instead of the installed P
 > Because the app uses PKCE auth, the magic link must be opened in the **same browser** where you requested it. If it opens in a different browser, you'll be prompted to enter your email again to get a new link in the correct browser.
 
 > If the sign-in screen shows **"Too many attempts. Please wait a few minutes and try again."** — Supabase has rate-limited OTP requests for that email address. Wait ~5 minutes before requesting another magic link.
+
+---
+
+## Security
+
+| Layer | Control |
+|---|---|
+| API authentication | All `/api/validate` calls require a valid Supabase Bearer token — unauthenticated calls return 401 |
+| Rate limiting | `/api/validate` is limited to **10 calls per user per 60 seconds**; excess returns 429 |
+| HTTP security headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=self, geolocation=self` applied to all routes |
+| Admin auth | Admin panel API routes check `x-admin-secret` header against `ADMIN_SECRET` env var on every request |
+| File uploads | Upload API enforces MIME type whitelist (`image/jpeg`, `image/png`, `image/webp`, `image/gif`) and strips path components to prevent path traversal |
+| XSS | All user-controlled and external strings (usernames, city names from Nominatim) are HTML-escaped before insertion into Leaflet map popup `innerHTML` |
+| GPS integrity | Capture is blocked with an error if GPS is unavailable — drops are never recorded with placeholder coordinates (except in demo mode) |
+| Anthropic key | Never exposed to the browser — all Claude API calls are made server-side in `/api/validate` only |
+| Supabase service key | Never exposed to the browser — used only in `/api/admin/upload` and `/api/admin/stickers` |
+
+---
+
+## Changelog
+
+### 2026-03-06
+- **Security: rate limiting** — `/api/validate` now enforces 10 calls/60s per authenticated user (prevents Anthropic API cost abuse)
+- **Security: upload validation** — admin upload API now whitelists MIME types and sanitizes storage paths against traversal attacks
+- **Security: HTTP headers** — added `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` via `next.config.js`
+- **Security: XSS fix** — all user-controlled values in Leaflet map popup HTML are now HTML-escaped via `escHtml()` helper
+- **Bug fix: double-submit** — camera capture now uses a `useRef` guard to prevent concurrent submissions in the same render tick
+- **Bug fix: GPS fallback** — in production, capture is now blocked if GPS is unavailable instead of silently recording a fake location; demo mode retains the Jakarta placeholder for testing
+- **Bug fix: leaderboard stale response** — `fetchLb` now aborts in-flight requests via `AbortController` before starting a new one
+- **Dependency: Next.js 14.2.5 → 14.2.35** — patches 1 critical + 12 high CVEs (cache poisoning, auth bypass, SSRF)

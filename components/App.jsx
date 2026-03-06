@@ -693,13 +693,16 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
   const [lb, setLb] = useState([{ tag:user.username, pts:totalScore, avatarId:user.avatar_id, own:true }]);
   const [globalDropCount, setGlobalDropCount] = useState(drops.length);
   const didMountLb = useRef(false);
+  const lbController = useRef(null);
 
   // Load real leaderboard from DB
   const fetchLb = () => {
     if (IS_DEMO) return;
+    if (lbController.current) lbController.current.abort();
+    lbController.current = new AbortController();
     const session = sb.auth.getSession();
     fetch(`${SUPABASE_URL}/rest/v1/users?select=username,total_score,avatar_id&order=total_score.desc&limit=10`,
-      { headers:{ "apikey":SUPABASE_ANON, ...(session?.access_token ? { "Authorization":`Bearer ${session.access_token}` } : {}) } })
+      { signal: lbController.current.signal, headers:{ "apikey":SUPABASE_ANON, ...(session?.access_token ? { "Authorization":`Bearer ${session.access_token}` } : {}) } })
       .then(r=>r.json())
       .then(rows=>{
         if (!rows?.length) return;
@@ -710,7 +713,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
         }
         setLb(mapped);
       })
-      .catch(()=>{});
+      .catch(e=>{ if (e.name !== "AbortError") console.error(e); });
   };
 
   // Poll every 30s so other users' scores appear without user action
@@ -1013,11 +1016,14 @@ function makeMarkerHtml(st, color, delay) {
   return `<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.45s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms both"><div style="width:42px;height:42px;border-radius:50%;border:2.5px solid ${color};background:#0A0A0A;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px ${color}25,0 4px 14px rgba(0,0,0,0.7)">${inner}</div><div style="width:2px;height:9px;background:${color}"></div><div style="width:5px;height:5px;border-radius:50%;background:${color}"></div></div>`;
 }
 
+function escHtml(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
 function makePopupHtml(st, d, rarCfg, color) {
   const artHtml = st.art_url
-    ? `<img src="${st.art_url}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;" />`
-    : `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:36px;color:${color}">${(st.name||"?")[0]}</span>`;
-  return `<div style="background:#141414;border:1px solid #2A2A2A;border-radius:18px;width:220px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.8)"><div style="height:90px;background:#0A0A0A;display:flex;align-items:center;justify-content:center;position:relative">${artHtml}<div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(0deg,#141414,transparent)"></div></div><div style="padding:11px 13px 13px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;margin-bottom:7px">${st.name}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px"><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:${rarCfg.bg};border:1px solid ${rarCfg.border};color:${rarCfg.color}">${st.rarity}</span><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(198,255,0,0.1);border:1px solid rgba(198,255,0,0.3);color:#C6FF00">+${d.pts} pts</span>${d.pioneer?`<span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFD700">🏴 Pioneer</span>`:""}</div><div style="font-family:'Space Mono',monospace;font-size:9px;color:#ffffff30;padding-top:8px;border-top:1px solid #2A2A2A">@${d.owner} · ${d.city} · ${d.time}</div></div></div>`;
+    ? `<img src="${escHtml(st.art_url)}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;" />`
+    : `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:36px;color:${color}">${escHtml((st.name||"?")[0])}</span>`;
+  return `<div style="background:#141414;border:1px solid #2A2A2A;border-radius:18px;width:220px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.8)"><div style="height:90px;background:#0A0A0A;display:flex;align-items:center;justify-content:center;position:relative">${artHtml}<div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(0deg,#141414,transparent)"></div></div><div style="padding:11px 13px 13px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;margin-bottom:7px">${escHtml(st.name)}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px"><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:${rarCfg.bg};border:1px solid ${rarCfg.border};color:${rarCfg.color}">${escHtml(st.rarity)}</span><span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(198,255,0,0.1);border:1px solid rgba(198,255,0,0.3);color:#C6FF00">+${d.pts} pts</span>${d.pioneer?`<span style="padding:2px 8px;border-radius:20px;font-size:9px;font-family:'Space Mono',monospace;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFD700">🏴 Pioneer</span>`:""}</div><div style="font-family:'Space Mono',monospace;font-size:9px;color:#ffffff30;padding-top:8px;border-top:1px solid #2A2A2A">@${escHtml(d.owner)} · ${escHtml(d.city)} · ${escHtml(d.time)}</div></div></div>`;
 }
 
 function MapScreen({ drops, stickers, onBack }) {
@@ -1160,6 +1166,7 @@ export default function App() {
   const [authError, setAuthError]     = useState("");
   const [stickers, setStickers]       = useState(DEFAULT_STICKERS);
   const [userLocation, setUserLocation] = useState(null); // { lat, lng }
+  const capturing = useRef(false);
 
   // ── Load stickers from DB on mount ───────────────────────────────────────
   useEffect(()=>{
@@ -1338,10 +1345,17 @@ export default function App() {
   };
 
   const handleCapture = async (b64) => {
+    if (capturing.current) return;
+    capturing.current = true;
     setScreen(SC.VALIDATING);
     try {
       const res = await validateSticker(b64, selectedSticker);
       if (res.valid) {
+        if (!userLocation && !IS_DEMO) {
+          setFailReason("Location unavailable. Enable GPS and try again.");
+          setScreen(SC.FAILED);
+          return;
+        }
         const isFirst   = finds === 0;
         const isPioneer = await checkStickerPioneer(selected);
         const { total, breakdown } = calcScore(selectedSticker, isFirst, isPioneer);
@@ -1375,6 +1389,8 @@ export default function App() {
     } catch {
       setFailReason("Server error. Please try again.");
       setScreen(SC.FAILED);
+    } finally {
+      capturing.current = false;
     }
   };
 

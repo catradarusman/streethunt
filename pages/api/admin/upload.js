@@ -3,9 +3,13 @@
 // Expects multipart form data: file (binary) + path (e.g. "s1-reference.jpg")
 // Protected: requires x-admin-secret header
 
+import path from "path";
+
 export const config = {
   api: { bodyParser: false },
 };
+
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_KEY;
@@ -82,8 +86,15 @@ export default async function handler(req, res) {
 
   if (!filePart || !pathPart) return res.status(400).json({ error: "Missing file or path" });
 
-  const storagePath = pathPart.data.toString().trim();
   const mimeType = filePart.contentType || "image/jpeg";
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    return res.status(400).json({ error: "Only image files (jpeg, png, webp, gif) are allowed" });
+  }
+
+  // Strip to basename and allow only safe characters to prevent path traversal
+  const rawPath = pathPart.data.toString().trim();
+  const storagePath = path.basename(rawPath).replace(/[^a-zA-Z0-9\-_.]/g, "");
+  if (!storagePath) return res.status(400).json({ error: "Invalid file path" });
 
   // Upload to Supabase Storage (upsert)
   const uploadRes = await fetch(
