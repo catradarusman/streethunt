@@ -61,10 +61,13 @@ const nextConfig = {
       {
         source: "/(.*)",
         headers: [
-          { key: "X-Frame-Options",        value: "DENY" },
+          // X-Frame-Options removed — replaced by CSP frame-ancestors below.
+          // Farcaster miniapps run inside a webview; DENY would block them entirely.
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy",        value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy",     value: "camera=self, geolocation=self" },
+          // Allow framing from Farcaster clients only (warpcast.com + farcaster.xyz)
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self' https://warpcast.com https://*.warpcast.com https://farcaster.xyz https://*.farcaster.xyz" },
         ],
       },
     ];
