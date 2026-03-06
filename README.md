@@ -89,10 +89,18 @@ create table stickers (
   active boolean default true
 );
 
+-- Pioneer claims table (atomic first-finder tracking)
+create table pioneer_claims (
+  sticker_id text primary key,
+  user_id    text not null references users(user_id),
+  claimed_at timestamptz default now()
+);
+
 -- Row Level Security
 alter table users enable row level security;
 alter table drops enable row level security;
 alter table stickers enable row level security;
+alter table pioneer_claims enable row level security;
 
 create policy "Users can read all profiles" on users for select using (true);
 create policy "Users can update own profile" on users for update using (auth.uid()::text = user_id);
@@ -102,6 +110,22 @@ create policy "Anyone can read drops" on drops for select using (true);
 create policy "Users can insert own drops" on drops for insert with check (auth.uid()::text = user_id);
 
 create policy "Anyone can read stickers" on stickers for select using (true);
+
+create policy "Anyone can read pioneer claims" on pioneer_claims for select using (true);
+create policy "Users can claim pioneer" on pioneer_claims for insert with check (auth.uid()::text = user_id);
+
+-- Atomic pioneer claim RPC (INSERT ... ON CONFLICT DO NOTHING, returns true if this call won)
+create or replace function claim_pioneer(p_sticker_id text, p_user_id text)
+returns boolean language plpgsql security definer as $$
+declare rows_inserted int;
+begin
+  insert into pioneer_claims(sticker_id, user_id)
+  values (p_sticker_id, p_user_id)
+  on conflict (sticker_id) do nothing;
+  get diagnostics rows_inserted = row_count;
+  return rows_inserted > 0;
+end;
+$$;
 ```
 
 ### 4. Supabase: storage buckets
@@ -368,6 +392,7 @@ Magic link emails on iOS: if the link opens in Safari instead of the installed P
 - **Security: upload validation** — admin upload API now whitelists MIME types and sanitizes storage paths against traversal attacks
 - **Security: HTTP headers** — added `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` via `next.config.js`
 - **Security: XSS fix** — all user-controlled values in Leaflet map popup HTML are now HTML-escaped via `escHtml()` helper
+- **Bug fix: pioneer race condition** — replaced client-side `drops` count check with an atomic Postgres RPC (`claim_pioneer`) using `INSERT ... ON CONFLICT DO NOTHING`; only one user can win the pioneer bonus per sticker regardless of concurrent finds
 - **Bug fix: double-submit** — camera capture now uses a `useRef` guard to prevent concurrent submissions in the same render tick
 - **Bug fix: GPS fallback** — in production, capture is now blocked if GPS is unavailable instead of silently recording a fake location; demo mode retains the Jakarta placeholder for testing
 - **Bug fix: leaderboard stale response** — `fetchLb` now aborts in-flight requests via `AbortController` before starting a new one

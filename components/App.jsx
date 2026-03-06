@@ -308,16 +308,25 @@ async function loadDropsFromDB(userId) {
 }
 
 // Returns true if no one (including the current user) has a drop for this sticker yet
-async function checkStickerPioneer(stickerId) {
+async function checkStickerPioneer(stickerId, userId) {
   if (IS_DEMO) return true;
   try {
     const session = sb.auth.getSession();
+    const token = session?.access_token;
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/drops?sticker_id=eq.${encodeURIComponent(stickerId)}&select=id&limit=1`,
-      { headers: { "apikey": SUPABASE_ANON, ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}) } }
+      `${SUPABASE_URL}/rest/v1/rpc/claim_pioneer`,
+      {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON,
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ p_sticker_id: stickerId, p_user_id: userId }),
+      }
     );
-    const data = await res.json();
-    return !data || data.length === 0;
+    const result = await res.json();
+    return result === true;
   } catch { return false; }
 }
 
@@ -1357,7 +1366,7 @@ export default function App() {
           return;
         }
         const isFirst   = finds === 0;
-        const isPioneer = await checkStickerPioneer(selected);
+        const isPioneer = await checkStickerPioneer(selected, user.userId);
         const { total, breakdown } = calcScore(selectedSticker, isFirst, isPioneer);
         const lat = userLocation?.lat ?? -6.2088+(Math.random()-0.5)*0.06;
         const lng = userLocation?.lng ?? 106.8456+(Math.random()-0.5)*0.06;
