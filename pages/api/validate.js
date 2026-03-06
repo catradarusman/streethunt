@@ -1,8 +1,12 @@
 // pages/api/validate.js
 // Server-side validation — Anthropic API key never touches the client
 // Reference images loaded from Supabase DB — manage stickers without redeploying
+// Auth: supports both Supabase JWT (web) and Farcaster Quick Auth JWT (miniapp)
 
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient as createFcAuthClient } from "@farcaster/quick-auth";
+
+const fcAuthClient = createFcAuthClient();
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -43,25 +47,52 @@ export const config = {
   },
 };
 
+// Decode JWT payload without verification — used to detect FC vs Supabase token
+function getJwtIssuer(token) {
+  try {
+    const raw = token.split(".")[1];
+    const padded = raw + "=".repeat((4 - raw.length % 4) % 4);
+    return JSON.parse(Buffer.from(padded, "base64").toString()).iss || "";
+  } catch { return ""; }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Require a valid Supabase session token to prevent unauthenticated API abuse
+  // Require an auth token — either Supabase JWT (web) or FC Quick Auth JWT (miniapp)
   const token = (req.headers["authorization"] || "").replace("Bearer ", "").trim();
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${token}` },
-  }).catch(() => null);
-  if (!authCheck || !authCheck.ok) {
-    return res.status(401).json({ error: "Unauthorized" });
+
+  let userId;
+  const iss = getJwtIssuer(token);
+
+  if (iss.includes("farcaster") || iss.includes("auth.farcaster")) {
+    // Farcaster Quick Auth JWT
+    try {
+      const appDomain = (process.env.NEXT_PUBLIC_APP_DOMAIN || process.env.NEXT_PUBLIC_APP_URL || "")
+        .replace(/^https?:\/\//, "").replace(/\/$/, "");
+      const payload = await fcAuthClient.verifyJwt({ token, domain: appDomain });
+      userId = `fc_${Number(payload.sub)}`;
+    } catch {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  } else {
+    // Supabase JWT — existing path
+    const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${token}` },
+    }).catch(() => null);
+    if (!authCheck || !authCheck.ok) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const authUser = await authCheck.json().catch(() => null);
+    userId = authUser?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
   }
-  const authUser = await authCheck.json().catch(() => null);
-  const userId = authUser?.id;
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
   if (isRateLimited(userId)) {
     return res.status(429).json({ valid: false, confidence: 0, reason: "Too many requests. Please wait a moment." });
   }

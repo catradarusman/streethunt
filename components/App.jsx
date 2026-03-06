@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 // ─── SUPABASE CONFIG ────────────────────────────────────────────────────────
 // Values come from .env.local — never hardcoded
@@ -154,6 +155,12 @@ function writeCache(data) {
 // When SUPABASE_URL is not configured, everything runs locally
 const IS_DEMO = !SUPABASE_URL || !SUPABASE_ANON;
 
+// ─── FC MINIAPP MODE ────────────────────────────────────────────────────────
+// Set to true when running inside Farcaster miniapp context.
+// FC users authenticate via Quick Auth (not email OTP).
+// Direct Supabase client calls are skipped — server API routes handle persistence.
+let IS_FARCASTER = false;
+
 // ─── DATA ──────────────────────────────────────────────────────────────────
 // Sticker icon — shows art_url image from DB, falls back to colored placeholder
 function StickerIcon({ sticker, size=64 }) {
@@ -247,19 +254,26 @@ async function validateSticker(userPhotoBase64, sticker) {
   }
 
   // Production — hits /api/validate, Anthropic key stays server-side
-  const session = sb.auth.getSession();
-  const res = await fetch("/api/validate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
-    },
-    body: JSON.stringify({
-      userPhotoBase64,
-      referenceId: sticker.id,
-      stickerName: sticker.name,
-    }),
-  });
+  const body = JSON.stringify({ userPhotoBase64, referenceId: sticker.id, stickerName: sticker.name });
+  let res;
+  if (IS_FARCASTER) {
+    // FC miniapp: Quick Auth auto-attaches the Bearer JWT
+    res = await sdk.quickAuth.fetch("/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+  } else {
+    const session = sb.auth.getSession();
+    res = await fetch("/api/validate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+      },
+      body,
+    });
+  }
 
   if (!res.ok) {
     return { valid: false, confidence: 0, reason: "Server error. Please try again." };
@@ -270,7 +284,7 @@ async function validateSticker(userPhotoBase64, sticker) {
 
 // ─── SUPABASE SYNC ─────────────────────────────────────────────────────────
 async function syncUserFromDB(userId) {
-  if (IS_DEMO) return null;
+  if (IS_DEMO || IS_FARCASTER) return null;
   try {
     const t = await sb.from("users");
     const { data } = await t.select("*", `user_id=eq.${encodeURIComponent(userId)}`);
@@ -279,7 +293,7 @@ async function syncUserFromDB(userId) {
 }
 
 async function saveUserToDB(userId, profile) {
-  if (IS_DEMO) return;
+  if (IS_DEMO || IS_FARCASTER) return;
   try {
     const t = await sb.from("users");
     await t.upsert({ user_id: userId, ...profile, updated_at: new Date().toISOString() });
@@ -287,7 +301,7 @@ async function saveUserToDB(userId, profile) {
 }
 
 async function saveDropToDB(userId, drop) {
-  if (IS_DEMO) return;
+  if (IS_DEMO || IS_FARCASTER) return;
   try {
     const t = await sb.from("drops");
     await t.insert({ user_id: userId, sticker_id: drop.stickerId, lat: drop.lat, lng: drop.lng, city: drop.city, pts: drop.pts, pioneer: drop.pioneer });
@@ -295,7 +309,7 @@ async function saveDropToDB(userId, drop) {
 }
 
 async function loadDropsFromDB(userId) {
-  if (IS_DEMO) return [];
+  if (IS_DEMO || IS_FARCASTER) return [];
   try {
     const t = await sb.from("drops");
     const { data } = await t.select("*", `user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`);
@@ -1207,61 +1221,130 @@ export default function App() {
     const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";sc.onload=()=>setLeafletOk(true);document.head.appendChild(sc);
   },[]);
 
-  // ── Handle magic link redirect ────────────────────────────────────────────
+  // ── Init: detect FC miniapp context, else handle web magic link / session ──
   useEffect(()=>{
-    // PKCE flow: Supabase redirects with ?code=... in query string
-    const searchParams = new URLSearchParams(window.location.search);
-    const code = searchParams.get("code");
-    if (code) {
-      window.history.replaceState(null, "", window.location.pathname);
-      sb.auth.exchangeCodeForSession(code).then(({ session, error }) => {
+    (async () => {
+      // ── Farcaster miniapp detection ──────────────────────────────────────
+      let fcCtx = null;
+      try { fcCtx = await sdk.context; } catch {}
+
+      if (fcCtx) {
+        IS_FARCASTER = true;
+        await handleFarcasterAuth(fcCtx);
+        sdk.actions.ready();
+        return;
+      }
+
+      // ── Web fallback: PKCE magic link redirect ───────────────────────────
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get("code");
+      if (code) {
+        window.history.replaceState(null, "", window.location.pathname);
+        const { session, error } = await sb.auth.exchangeCodeForSession(code);
         if (session) {
-          loadUserAfterAuth(session);
+          await loadUserAfterAuth(session);
         } else if (error?.message === "different_device") {
           setAuthError("This link was opened on a different device. Enter your email here to get a new link on this device.");
           setScreen(SC.AUTH);
         } else {
           tryRestoreSession();
         }
-      });
-      return;
-    }
+        sdk.actions.ready();
+        return;
+      }
 
-    // Implicit flow: Supabase redirects with #access_token=... in hash
-    const hash = window.location.hash;
-    if (!hash.includes("access_token")) {
+      // ── Implicit flow: hash token ────────────────────────────────────────
+      const hash = window.location.hash;
+      if (hash.includes("access_token")) {
+        const params = new URLSearchParams(hash.replace("#",""));
+        const accessToken  = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        const type         = params.get("type");
+
+        if (accessToken && (type === "magiclink" || type === "signup")) {
+          let userId = null, userEmail = null;
+          try {
+            const b64 = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+            const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+            const payload = JSON.parse(atob(padded));
+            userId = payload.sub; userEmail = payload.email;
+          } catch {}
+          const session = { access_token: accessToken, refresh_token: refreshToken, user: { id: userId, email: userEmail } };
+          localStorage.setItem("sb_session", JSON.stringify(session));
+          window.history.replaceState(null, "", window.location.pathname);
+          await loadUserAfterAuth(session);
+        } else {
+          window.history.replaceState(null, "", window.location.pathname);
+          tryRestoreSession();
+        }
+        sdk.actions.ready();
+        return;
+      }
+
+      // ── Default: restore cached session ─────────────────────────────────
       tryRestoreSession();
-      return;
-    }
-
-    const params = new URLSearchParams(hash.replace("#",""));
-    const accessToken  = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const type         = params.get("type");
-
-    if (accessToken && (type === "magiclink" || type === "signup")) {
-      // Decode JWT payload — normalize base64url to standard base64 first
-      let userId = null;
-      let userEmail = null;
-      try {
-        const b64 = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-        const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
-        const payload = JSON.parse(atob(padded));
-        userId    = payload.sub;
-        userEmail = payload.email;
-      } catch {}
-
-      const session = { access_token: accessToken, refresh_token: refreshToken, user: { id: userId, email: userEmail } };
-      localStorage.setItem("sb_session", JSON.stringify(session));
-      // Clean URL so token isn't re-processed on refresh
-      window.history.replaceState(null, "", window.location.pathname);
-      loadUserAfterAuth(session);
-    } else {
-      // Hash present but not a magic link (e.g. error) — just restore session
-      window.history.replaceState(null, "", window.location.pathname);
-      tryRestoreSession();
-    }
+      sdk.actions.ready();
+    })();
   }, []);
+
+  // ── FC auth: sign in with Farcaster profile ───────────────────────────────
+  const handleFarcasterAuth = async (fcCtx) => {
+    const fcUser = fcCtx.user || {};
+    const fid    = fcUser.fid;
+    if (!fid) return;
+
+    const userId   = `fc_${fid}`;
+    const username = fcUser.username || fcUser.displayName || `fid_${fid}`;
+    const pfpUrl   = fcUser.pfpUrl   || null;
+    const avatarId = pfpUrl
+      ? JSON.stringify({ type: "upload", value: pfpUrl })
+      : JSON.stringify({ type: "emoji", value: "🎭" });
+
+    // Check localStorage cache first — returning FC users load instantly
+    const cache = readCache();
+    if (cache.userId === userId && cache.username) {
+      setUser(cache);
+      setTotalScore(cache.total_score || 0);
+      setDiscovered(cache.discovered || []);
+      setDrops([...SEED_DROPS, ...(cache.ownDrops || []).map(d => ({...d, isOwn: true}))]);
+      setFinds(cache.finds || 0);
+      setScreen(SC.DASH);
+      return;
+    }
+
+    // New FC user or stale cache — hit /api/fc-auth to register in DB
+    setSyncing(true);
+    let serverUser = null;
+    try {
+      serverUser = await sdk.quickAuth.fetch("/api/fc-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fid, username: fcUser.username, displayName: fcUser.displayName, pfpUrl }),
+      }).then(r => r.ok ? r.json() : null);
+    } catch {}
+
+    const resolvedUsername = serverUser?.username || username;
+    const resolvedAvatarId = serverUser?.avatarId  || avatarId;
+
+    const profile = {
+      userId,
+      username:    resolvedUsername,
+      avatar_id:   resolvedAvatarId,
+      total_score: 0,
+      finds:       0,
+      discovered:  [],
+      fid,
+    };
+
+    writeCache({ ...profile, ownDrops: [] });
+    setUser(profile);
+    setTotalScore(0);
+    setDiscovered([]);
+    setDrops(SEED_DROPS);
+    setFinds(0);
+    setSyncing(false);
+    setScreen(SC.DASH);
+  };
 
   const tryRestoreSession = async () => {
     const cache = readCache();
