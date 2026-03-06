@@ -1,9 +1,4 @@
 {
-  "accountAssociation": {
-    "header": "TODO: generate via Warpcast Developer Tools",
-    "payload": "TODO: generate via Warpcast Developer Tools",
-    "signature": "TODO: generate via Warpcast Developer Tools"
-  },
   "miniapp": {
     "version": "1",
     "name": "StreetHunt",
