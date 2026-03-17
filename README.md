@@ -276,16 +276,18 @@ Connect your GitHub repo to Vercel for automatic deployments:
 User selects sticker from grid
   → Camera opens → device GPS captured via navigator.geolocation (once per session)
   → Camera captures photo
+  → GPS checked immediately — error shown if unavailable (no API call made)
   → POST /api/validate (server-side only)
-  → Fetch reference image from Supabase Storage (stickers.reference_url)
-  → Validator receives: reference image + user photo
-  → Checks: does the photo show the same concept/subject as the reference?
-  → Returns: { valid, confidence, reason }
+      → Sticker looked up in DB; falls back to DEFAULT_STICKERS if DB returns null
+      → Reference image fetched from Supabase Storage (stickers.reference_url)
+      → Validator receives: reference image + user photo (or name-only if no reference)
+      → Checks: does the photo show the same concept/subject as the reference?
+      → Returns: { valid, confidence, reason }
   → Valid:
-      → Coordinates from device GPS (required; capture is blocked if GPS unavailable)
+      → Coordinates from device GPS
       → City name resolved via Nominatim reverse geocoding
       → Pin drops on map at real location, points awarded
-  → Invalid: retry screen with tips
+  → Invalid: retry screen with tips showing the real reason from the API
   → Fallback: if no reference image uploaded, validator checks for any real-world
     object matching the target name
 ```
@@ -386,6 +388,16 @@ Magic link emails on iOS: if the link opens in Safari instead of the installed P
 ---
 
 ## Changelog
+
+### 2026-03-17
+- **Bug fix: sticker ID mismatch** — server now falls back to a `DEFAULT_STICKERS` map matching the client's built-in IDs (`s1`–`s8`) when the DB returns null; prevents `"Unknown sticker"` 400 errors when the `stickers` table is empty or IDs mismatch
+- **Bug fix: MIME type params** — `content-type` header from Supabase Storage is now stripped to the base type before passing to the Claude API (e.g. `"image/jpeg; charset=..."` → `"image/jpeg"`), preventing Claude API rejections
+- **Bug fix: error masking** — `/api/validate` non-ok responses now parse the JSON body and surface the real error (e.g. `"Unknown sticker"`, `"Rate limit exceeded"`) instead of always returning `"Server error. Please try again."`
+- **Bug fix: GPS check timing** — GPS availability is now checked *before* the Claude API call; users see the GPS error immediately instead of after a 3–5s round-trip
+- **Bug fix: null camera b64** — a null photo (camera permission denied) now exits early with a clear message instead of hitting `/api/validate` with null data and returning a generic server error
+- **Bug fix: global drop count query** — `fetchGlobalDropCount` now uses `limit=0` so PostgREST returns only the `content-range` count header; previously it downloaded every row ID
+- **Bug fix: Claude response JSON regex** — switched from non-greedy `{[\s\S]*?}` to greedy `{[\s\S]*}` to prevent parse failures when Claude's `reason` field contains braces
+- **Fix: sdk.actions.ready() guard** — `sdk.actions.ready()` is now only called when `IS_FARCASTER` is true; previously it was called unconditionally at the end of every auth path
 
 ### 2026-03-06
 - **Security: rate limiting** — `/api/validate` now enforces 10 calls/60s per authenticated user (prevents Anthropic API cost abuse)
