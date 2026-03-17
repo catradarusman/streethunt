@@ -64,6 +64,27 @@ const sb = {
       } catch { return null; }
     },
 
+    async refreshSession() {
+      try {
+        const session = this.getSession();
+        if (!session?.refresh_token) return null;
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: "POST",
+          headers: { "apikey": SUPABASE_ANON, "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: session.refresh_token }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const newSession = {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token || session.refresh_token,
+          user: data.user || session.user,
+        };
+        localStorage.setItem("sb_session", JSON.stringify(newSession));
+        return newSession;
+      } catch { return null; }
+    },
+
     signOut() {
       localStorage.removeItem("sb_session");
       localStorage.removeItem(CACHE_KEY);
@@ -137,6 +158,18 @@ const sb = {
     return { url, error: null };
   }
 };
+
+// Returns a valid session, auto-refreshing the access token if it has expired
+async function getValidSession() {
+  if (IS_FARCASTER) return null; // FC users use sdk.quickAuth.fetch — no session needed here
+  const session = sb.auth.getSession();
+  if (!session?.access_token) return null;
+  try {
+    const payload = JSON.parse(atob(session.access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+    if (Date.now() < payload.exp * 1000 - 60_000) return session; // still valid with >1 min to spare
+  } catch { /* can't decode — fall through to refresh */ }
+  return await sb.auth.refreshSession();
+}
 
 // ─── CACHE (localStorage as offline buffer) ────────────────────────────────
 // In PWA: always read from cache first, sync to Supabase when online
@@ -264,7 +297,7 @@ async function validateSticker(userPhotoBase64, sticker) {
       body,
     });
   } else {
-    const session = sb.auth.getSession();
+    const session = await getValidSession();
     res = await fetch("/api/validate", {
       method: "POST",
       headers: {
@@ -1358,8 +1391,11 @@ export default function App() {
       setDrops([...SEED_DROPS,...ownDrops]);
       setFinds(cache.finds||0);
       setScreen(SC.DASH);
-      // Then sync from Supabase in background if online
-      if (!IS_DEMO && navigator.onLine) syncFromDB(cache.userId);
+      // Refresh auth token and sync profile in background
+      if (!IS_DEMO && !IS_FARCASTER && navigator.onLine) {
+        sb.auth.refreshSession(); // warm up the token so first action doesn't 401
+        syncFromDB(cache.userId);
+      }
     }
     // else: stay on auth screen
   };
