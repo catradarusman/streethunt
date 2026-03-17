@@ -15,6 +15,18 @@ const client = new Anthropic({
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON;
 
+// Fallback sticker definitions — must match DEFAULT_STICKERS in App.jsx
+const DEFAULT_STICKERS = {
+  s1: { id:"s1", name:"Dead Eye",    active:true, reference_url:null },
+  s2: { id:"s2", name:"Neon Reaper", active:true, reference_url:null },
+  s3: { id:"s3", name:"Grin",        active:true, reference_url:null },
+  s4: { id:"s4", name:"Void King",   active:true, reference_url:null },
+  s5: { id:"s5", name:"Rust Face",   active:true, reference_url:null },
+  s6: { id:"s6", name:"Ghost Tag",   active:true, reference_url:null },
+  s7: { id:"s7", name:"Gold Tooth",  active:true, reference_url:null },
+  s8: { id:"s8", name:"Static",      active:true, reference_url:null },
+};
+
 // Per-user rate limit: max 10 calls per 60 seconds
 const rateLimitMap = new Map();
 const RATE_WINDOW_MS = 60_000;
@@ -107,6 +119,9 @@ export default async function handler(req, res) {
     const sticker = await getStickerFromDB(referenceId);
 
     if (!sticker) {
+      sticker = DEFAULT_STICKERS[referenceId] || null;
+    }
+    if (!sticker) {
       return res.status(400).json({ error: "Unknown sticker" });
     }
 
@@ -128,7 +143,7 @@ export default async function handler(req, res) {
         if (refResponse.ok) {
           const refBuffer = await refResponse.arrayBuffer();
           refBase64 = Buffer.from(refBuffer).toString("base64");
-          refMimeType = refResponse.headers.get("content-type") || "image/jpeg";
+          refMimeType = (refResponse.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
         }
       } catch {}
     }
@@ -192,7 +207,7 @@ export default async function handler(req, res) {
     });
 
     const text = response.content[0]?.text || "";
-    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
       return res.status(200).json({ valid: false, confidence: 0, reason: "Could not analyze photo." });

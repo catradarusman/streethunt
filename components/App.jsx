@@ -276,7 +276,8 @@ async function validateSticker(userPhotoBase64, sticker) {
   }
 
   if (!res.ok) {
-    return { valid: false, confidence: 0, reason: "Server error. Please try again." };
+    const body = await res.json().catch(() => ({}));
+    return { valid: false, confidence: 0, reason: body.error || body.reason || "Server error. Please try again." };
   }
 
   return res.json();
@@ -349,7 +350,7 @@ async function fetchGlobalDropCount() {
   if (IS_DEMO) return 0;
   try {
     const session = sb.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/drops?select=id`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/drops?select=*&limit=0`, {
       headers: {
         "apikey": SUPABASE_ANON,
         "Prefer": "count=exact",
@@ -742,7 +743,7 @@ function Dashboard({ user, totalScore, drops, discovered, stickers, finds, onHun
       .catch(e=>{ if (e.name !== "AbortError") console.error(e); });
   };
 
-  // Poll every 30s so other users' scores appear without user action
+  // Poll every 10s so other users' scores appear without user action
   useEffect(()=>{
     fetchLb();
     fetchGlobalDropCount().then(n=>{ if(n>0) setGlobalDropCount(n); });
@@ -1231,7 +1232,7 @@ export default function App() {
       if (fcCtx) {
         IS_FARCASTER = true;
         await handleFarcasterAuth(fcCtx);
-        sdk.actions.ready();
+        if (IS_FARCASTER) sdk.actions.ready();
         return;
       }
 
@@ -1249,7 +1250,7 @@ export default function App() {
         } else {
           tryRestoreSession();
         }
-        sdk.actions.ready();
+        if (IS_FARCASTER) sdk.actions.ready();
         return;
       }
 
@@ -1277,13 +1278,13 @@ export default function App() {
           window.history.replaceState(null, "", window.location.pathname);
           tryRestoreSession();
         }
-        sdk.actions.ready();
+        if (IS_FARCASTER) sdk.actions.ready();
         return;
       }
 
       // ── Default: restore cached session ─────────────────────────────────
       tryRestoreSession();
-      sdk.actions.ready();
+      if (IS_FARCASTER) sdk.actions.ready();
     })();
   }, []);
 
@@ -1442,15 +1443,22 @@ export default function App() {
   const handleCapture = async (b64) => {
     if (capturing.current) return;
     capturing.current = true;
+    if (!b64) {
+      setFailReason("Camera unavailable. Allow camera access and try again.");
+      setScreen(SC.FAILED);
+      capturing.current = false;
+      return;
+    }
+    if (!userLocation && !IS_DEMO) {
+      setFailReason("Location unavailable. Enable GPS and try again.");
+      setScreen(SC.FAILED);
+      capturing.current = false;
+      return;
+    }
     setScreen(SC.VALIDATING);
     try {
       const res = await validateSticker(b64, selectedSticker);
       if (res.valid) {
-        if (!userLocation && !IS_DEMO) {
-          setFailReason("Location unavailable. Enable GPS and try again.");
-          setScreen(SC.FAILED);
-          return;
-        }
         const isFirst   = finds === 0;
         const isPioneer = await checkStickerPioneer(selected, user.userId);
         const { total, breakdown } = calcScore(selectedSticker, isFirst, isPioneer);
