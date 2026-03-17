@@ -116,11 +116,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const sticker = await getStickerFromDB(referenceId);
+    const sticker = (await getStickerFromDB(referenceId)) || DEFAULT_STICKERS[referenceId] || null;
 
-    if (!sticker) {
-      sticker = DEFAULT_STICKERS[referenceId] || null;
-    }
     if (!sticker) {
       return res.status(400).json({ error: "Unknown sticker" });
     }
