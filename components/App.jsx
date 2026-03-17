@@ -1479,7 +1479,7 @@ export default function App() {
   const handleCapture = async (b64) => {
     if (capturing.current) return;
     capturing.current = true;
-    if (!b64) {
+    if (!b64 && !IS_DEMO) {
       setFailReason("Camera unavailable. Allow camera access and try again.");
       setScreen(SC.FAILED);
       capturing.current = false;
