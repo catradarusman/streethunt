@@ -607,7 +607,7 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
         <h1 style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:48, fontWeight:800, lineHeight:0.95, marginBottom:10 }}>FIND THE<br/>STICKER</h1>
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, lineHeight:1.7 }}>
           Enter your email to get started.<br/>
-          We'll send a magic link — no password needed.
+          We&apos;ll send a magic link — no password needed.
         </p>
       </div>
 
@@ -615,7 +615,7 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
         <div style={{ background:"rgba(198,255,0,0.06)", border:"1px solid rgba(198,255,0,0.2)", borderRadius:12, padding:"10px 14px" }}>
           <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#C6FF00", lineHeight:1.6 }}>
             🧪 Demo mode — Supabase not configured.<br/>
-            Email won't be sent. Tap continue to test the full flow.
+            Email won&apos;t be sent. Tap continue to test the full flow.
           </p>
         </div>
       )}
@@ -650,12 +650,12 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff50", fontSize:11, lineHeight:1.8 }}>
           We sent a magic link to<br/>
           <span style={{ color:"#C6FF00" }}>{email}</span><br/><br/>
-          Click the link in the email — it'll bring you back here and log you in automatically.
+          Click the link in the email — it&apos;ll bring you back here and log you in automatically.
         </p>
       </div>
       <div style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:14, padding:"14px 18px", width:"100%", maxWidth:300 }}>
         <p style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:"#ffffff35", lineHeight:1.8 }}>
-          💡 PWA tip: If the link opens in Safari, tap the share icon → "Open in..." → your browser where the app is installed.
+          💡 PWA tip: If the link opens in Safari, tap the share icon → &quot;Open in...&quot; → your browser where the app is installed.
         </p>
       </div>
       <button onClick={() => setStage("email")} style={{ background:"none", border:"none", fontFamily:"'Space Mono',monospace", fontSize:11, color:"#ffffff30", textDecoration:"underline" }}>
@@ -671,7 +671,7 @@ function AuthScreen({ onAuth, pendingSession, initialError="" }) {
       <div>
         <p style={{ fontFamily:"'Space Mono',monospace", color:"#C6FF00", fontSize:10, letterSpacing:"0.15em", marginBottom:8 }}>ONE TIME SETUP</p>
         <h2 style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:40, fontWeight:800, lineHeight:1 }}>SET YOUR TAG</h2>
-        <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, marginTop:8, lineHeight:1.6 }}>Your identity on the leaderboard and map. Can't be changed later.</p>
+        <p style={{ fontFamily:"'Space Mono',monospace", color:"#ffffff40", fontSize:11, marginTop:8, lineHeight:1.6 }}>Your identity on the leaderboard and map. Can&apos;t be changed later.</p>
       </div>
 
       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
